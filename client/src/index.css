@@ -27,10 +27,16 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --font-mono: 'JetBrains Mono', monospace;
-  --font-sans: 'Inter', sans-serif;
-  --font-display: 'Orbitron', sans-serif;
+  --font-mono: 'Share Tech Mono', 'JetBrains Mono', monospace;
+  --font-sans: 'Rajdhani', 'Inter', sans-serif;
+  --font-display: 'Audiowide', 'Orbitron', sans-serif;
   --font-impact: 'Bebas Neue', sans-serif;
+  --font-cn-title: 'Noto Sans SC', 'ZCOOL QingKe HuangYou', sans-serif;
+  --font-pixel: 'Press Start 2P', monospace;
+  --font-horror: 'Creepster', cursive;
+  --font-glitch: 'Rubik Glitch', system-ui;
+  --font-mega: 'Major Mono Display', monospace;
+  --font-shade: 'Bungee Shade', cursive;
 }
 
 :root {
@@ -67,7 +73,8 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Rajdhani', 'Inter', sans-serif;
+    font-weight: 500;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
@@ -289,11 +296,77 @@
 
 /* Font utility classes */
 .font-display {
-  font-family: 'Orbitron', sans-serif;
+  font-family: 'Audiowide', 'Orbitron', sans-serif;
 }
 
 .font-impact {
   font-family: 'Bebas Neue', sans-serif;
+}
+
+.font-cn-title {
+  font-family: 'Noto Sans SC', 'ZCOOL QingKe HuangYou', sans-serif;
+  font-weight: 900;
+}
+
+.font-pixel {
+  font-family: 'Press Start 2P', monospace;
+}
+
+.font-horror {
+  font-family: 'Creepster', cursive;
+}
+
+.font-glitch {
+  font-family: 'Rubik Glitch', system-ui;
+}
+
+.font-mega {
+  font-family: 'Major Mono Display', monospace;
+  text-transform: lowercase;
+}
+
+.font-shade {
+  font-family: 'Bungee Shade', cursive;
+}
+
+.font-tech {
+  font-family: 'Share Tech Mono', monospace;
+}
+
+/* Enhanced text effects */
+.text-glow-red {
+  text-shadow: 0 0 7px rgba(229, 57, 53, 0.8), 0 0 20px rgba(229, 57, 53, 0.4), 0 0 40px rgba(229, 57, 53, 0.2);
+}
+
+.text-glow-green {
+  text-shadow: 0 0 7px rgba(0, 255, 65, 0.8), 0 0 20px rgba(0, 255, 65, 0.4), 0 0 40px rgba(0, 255, 65, 0.2);
+}
+
+.text-glow-cyan {
+  text-shadow: 0 0 7px rgba(0, 229, 255, 0.8), 0 0 20px rgba(0, 229, 255, 0.4), 0 0 40px rgba(0, 229, 255, 0.2);
+}
+
+.text-outline {
+  -webkit-text-stroke: 1px currentColor;
+  color: transparent;
+}
+
+.text-outline-red {
+  -webkit-text-stroke: 1.5px #E53935;
+  color: transparent;
+}
+
+.text-distortion {
+  animation: textDistortion 4s infinite;
+}
+
+@keyframes textDistortion {
+  0%, 100% { transform: skew(0deg); filter: none; }
+  2% { transform: skew(-2deg); filter: hue-rotate(90deg); }
+  4% { transform: skew(0deg); filter: none; }
+  48% { transform: skew(0deg); filter: none; }
+  50% { transform: skew(1.5deg); filter: brightness(1.5) saturate(2); }
+  52% { transform: skew(0deg); filter: none; }
 }
 
 /* Particle container */

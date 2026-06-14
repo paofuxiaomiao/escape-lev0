@@ -17,3 +17,12 @@
 - [x] 全屏转场动画（冲击波、画面撕裂、扫描线加速）
 - [x] 更具感染力的字体设计（标题字体、故障文字动画）
 - [x] 层级切换时的转场效果集成
+- [x] 换用更有冲击力的字体（Audiowide/Share Tech Mono/Noto Sans SC Black+发光特效）
+- [x] 创建路程地图页面（参考关系映射视图风格，暗色底+网格+虚线路径）
+- [x] 使用实景照片作为每个层级的背景缩略图
+- [x] 进入游戏后先展示路程地图，再进入对应层级
+- [x] 修复dotenv依赖错误（服务器启动报ERR_MODULE_NOT_FOUND）
+- [x] 修复Game.tsx读取localStorage选中层级（从地图选择层级后正确开始游戏）
+- [x] 修复LevelMap层级状态逻辑（locked判断方向修正，levelId递减方向）
+- [x] 修复LevelMap与Game之间的进度存储格式一致性
+- [x] 字体升级为Audiowide+Share Tech Mono+Rajdhani组合，添加发光/色差/描边特效

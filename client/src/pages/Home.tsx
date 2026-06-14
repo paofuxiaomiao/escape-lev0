@@ -82,7 +82,7 @@ export default function Home() {
   }, []);
 
   const handleEnterGame = useCallback(() => {
-    navigate('/game');
+    navigate('/map');
   }, [navigate]);
 
   return (
@@ -285,7 +285,7 @@ export default function Home() {
                 transition={{ delay: 0.3, duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
                 className="mb-8"
               >
-                <h1 className="font-display font-black text-5xl md:text-7xl tracking-[0.05em] text-white leading-none">
+                <h1 className="font-display text-5xl md:text-7xl tracking-[0.08em] text-white leading-none text-glow-red chromatic-text">
                   LEV<span className="text-[#E53935]">0</span>
                 </h1>
                 <motion.div
@@ -310,7 +310,7 @@ export default function Home() {
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: line.delay, duration: 0.5 }}
-                    className="font-mono text-[13px] text-gray-400 leading-relaxed"
+                    className="font-tech text-[13px] text-gray-400 leading-relaxed tracking-wide"
                   >
                     {line.highlight ? (
                       <>
@@ -328,18 +328,18 @@ export default function Home() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.8, duration: 0.6 }}
               >
-                <p className="font-mono text-[11px] text-gray-600 mb-4">
-                  入场前请<span className="text-[#E53935]">跨过警戒线</span>
+                <p className="font-tech text-[11px] text-gray-600 mb-4 tracking-widest">
+                  入场前请<span className="text-[#E53935] text-glow-red">跨过警戒线</span>
                 </p>
                 <button
                   onClick={handleEnterGame}
-                  className="group relative inline-flex items-center gap-2 px-8 py-3.5 
-                    border border-[#E53935]/40 text-[#E53935] font-display text-sm tracking-[0.15em] uppercase
-                    hover:bg-[#E53935]/8 hover:border-[#E53935]/80 hover:shadow-[0_0_30px_rgba(229,57,53,0.2)]
+                  className="group relative inline-flex items-center gap-3 px-10 py-4 
+                    border border-[#E53935]/40 text-[#E53935] font-display text-sm tracking-[0.2em] uppercase
+                    hover:bg-[#E53935]/8 hover:border-[#E53935]/80 hover:shadow-[0_0_40px_rgba(229,57,53,0.25)]
                     active:scale-[0.97] transition-all duration-300 pulse-glow"
                 >
                   <span className="inline-block w-2 h-2 bg-[#E53935] rounded-full animate-pulse" />
-                  <span>进入后室</span>
+                  <span className="text-glow-red">进入后室</span>
                 </button>
               </motion.div>
 
@@ -350,14 +350,14 @@ export default function Home() {
                 transition={{ delay: 2.5, duration: 1 }}
                 className="mt-14 space-y-1.5"
               >
-                <div className="flex items-center justify-center gap-3 text-[9px] font-mono text-gray-700">
+                <div className="flex items-center justify-center gap-3 text-[9px] font-tech text-gray-700">
                   <span>ACCESS_TOKEN: LEV0</span>
                   <span className="text-gray-800">|</span>
                   <span>MODE: ANOMALY_DETECT</span>
                   <span className="text-gray-800">|</span>
-                  <span>STATUS: <span className="text-green-600">ACTIVE</span></span>
+                  <span>STATUS: <span className="text-green-600 text-glow-green">ACTIVE</span></span>
                 </div>
-                <p className="text-[9px] font-mono text-gray-800">
+                <p className="text-[9px] font-tech text-gray-800 tracking-wider">
                   temporary civilization for young builders · cross boundaries · build anyway
                 </p>
               </motion.div>
@@ -378,15 +378,15 @@ export default function Home() {
       )}
 
       {/* 角落装饰 */}
-      <div className="fixed top-4 left-4 z-20 font-mono text-[9px] text-gray-700/50">
+      <div className="fixed top-4 left-4 z-20 font-tech text-[9px] text-gray-700/50">
         <p>SYS.BACKROOMS.v0.1</p>
         <p className="mt-0.5">PROTOCOL: LIMINAL_SPACE</p>
       </div>
-      <div className="fixed bottom-4 right-4 z-20 font-mono text-[9px] text-gray-700/50 text-right">
+      <div className="fixed bottom-4 right-4 z-20 font-tech text-[9px] text-gray-700/50 text-right">
         <p>{new Date().toISOString().replace('T', ' ').split('.')[0]}</p>
         <p className="mt-0.5">lev0.cn</p>
       </div>
-      <div className="fixed top-4 right-4 z-20 font-mono text-[9px] text-gray-700/50">
+      <div className="fixed top-4 right-4 z-20 font-tech text-[9px] text-gray-700/50">
         <p>CONN: <span className="text-green-700/60">ESTABLISHED</span></p>
       </div>
     </div>

@@ -56,7 +56,21 @@ type GamePhase = 'intro' | 'loading' | 'playing' | 'choosing' | 'correct' | 'wro
 
 export default function Game() {
   const [, navigate] = useLocation();
-  const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
+  
+  // Read selected level from localStorage (set by LevelMap)
+  const getInitialLevelIndex = (): number => {
+    try {
+      const stored = localStorage.getItem('escape_lev0_selected');
+      if (stored) {
+        const { level } = JSON.parse(stored);
+        const idx = LEVELS.findIndex(l => l.id === level);
+        if (idx !== -1) return idx;
+      }
+    } catch {}
+    return 0; // Default to first level (LEV5)
+  };
+  
+  const [currentLevelIndex, setCurrentLevelIndex] = useState(getInitialLevelIndex);
   const [gamePhase, setGamePhase] = useState<GamePhase>('intro');
   const [currentVideoIsNormal, setCurrentVideoIsNormal] = useState(false);
   const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
@@ -194,6 +208,8 @@ export default function Game() {
   const advanceLevel = useCallback(() => {
     const nextIndex = currentLevelIndex + 1;
     if (nextIndex >= LEVELS.length) {
+      // Update progress - all levels completed
+      localStorage.setItem('escape_lev0_progress', JSON.stringify({ level: 0 }));
       setTransitionType('gameEnd');
       setShowTransition(true);
       setTimeout(() => {
@@ -202,6 +218,10 @@ export default function Game() {
       }, 3000);
       return;
     }
+    
+    // Update progress to next level
+    const nextLevel = LEVELS[nextIndex];
+    localStorage.setItem('escape_lev0_progress', JSON.stringify({ level: nextLevel.id }));
     
     // 层级转场
     setTransitionType('levelUp');
@@ -314,16 +334,16 @@ export default function Game() {
       <div className="fixed top-0 left-0 right-0 z-40 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5">
-            <span className="font-display text-[10px] text-gray-500 uppercase tracking-[0.2em]">Level</span>
+            <span className="font-tech text-[10px] text-gray-500 uppercase tracking-[0.2em]">Level</span>
             <span className="font-impact text-3xl text-white leading-none">{currentLevel.id}</span>
           </div>
           <div className="w-px h-5 bg-gray-700/50 mx-2" />
-          <span className="font-mono text-[10px] text-gray-500 tracking-wider">{currentLevel.name}</span>
+          <span className="font-tech text-[10px] text-gray-500 tracking-wider">{currentLevel.name}</span>
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="font-mono text-[10px] text-gray-600">
-            <span className="text-green-500 font-bold">{score}</span>
+          <div className="font-tech text-[10px] text-gray-600">
+            <span className="text-green-500 font-bold text-glow-green">{score}</span>
             <span className="text-gray-700"> / </span>
             <span>{totalAttempts}</span>
           </div>
@@ -359,14 +379,14 @@ export default function Game() {
                 animate={{ opacity: [0.4, 1, 0.4] }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                <p className="font-mono text-[11px] text-gray-500 mb-6 tracking-[0.3em]">
+                <p className="font-tech text-[11px] text-gray-500 mb-6 tracking-[0.3em]">
                   正在连接后室网络...
                 </p>
               </motion.div>
-              <h2 className="font-display font-black text-5xl md:text-7xl text-white mb-3 tracking-wider level-slam">
-                LEVEL <span className="text-[#E53935]">{currentLevel.id}</span>
+              <h2 className="font-display text-5xl md:text-7xl text-white mb-3 tracking-wider level-slam text-glow-red">
+                LEVEL <span className="text-[#E53935] chromatic-text">{currentLevel.id}</span>
               </h2>
-              <p className="font-mono text-sm text-[#E53935]/80 tracking-wide">
+              <p className="font-tech text-sm text-[#E53935]/80 tracking-wide">
                 {currentLevel.description}
               </p>
               <div className="mt-8 flex justify-center">
@@ -396,7 +416,7 @@ export default function Game() {
                     transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
                     className="w-6 h-6 border-[1.5px] border-gray-700 border-t-[#E53935] rounded-full"
                   />
-                  <p className="font-mono text-[11px] text-gray-500 tracking-wider">
+                  <p className="font-tech text-[11px] text-gray-500 tracking-wider">
                     {currentLevel.systemMsg}
                   </p>
                 </div>
@@ -416,9 +436,9 @@ export default function Game() {
                 </div>
                 <div className="absolute top-2.5 left-3 flex items-center gap-1.5">
                   <span className="inline-block w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-                  <span className="font-mono text-[9px] text-red-500/70">REC</span>
+                  <span className="font-tech text-[9px] text-red-500/70">REC</span>
                 </div>
-                <div className="absolute bottom-2.5 left-3 font-mono text-[9px] text-gray-600">
+                <div className="absolute bottom-2.5 left-3 font-tech text-[9px] text-gray-600">
                   CAM-{currentLevel.id} | {currentLevel.name.toUpperCase()}
                 </div>
               </div>
@@ -460,7 +480,7 @@ export default function Game() {
                         <p className="font-display text-[12px] text-gray-300 mb-1 tracking-wider">
                           [ 演示模式 ]
                         </p>
-                        <p className="font-mono text-[10px] text-gray-500">
+                        <p className="font-tech text-[10px] text-gray-500">
                           请在管理后台上传视频素材
                         </p>
                       </div>
@@ -471,20 +491,20 @@ export default function Game() {
                 {/* 帧装饰 */}
                 <div className="absolute top-2.5 left-3 flex items-center gap-1.5">
                   <span className={`inline-block w-1.5 h-1.5 rounded-full ${gamePhase === 'playing' ? 'bg-red-500 animate-pulse' : 'bg-gray-500'}`} />
-                  <span className={`font-mono text-[9px] ${gamePhase === 'playing' ? 'text-red-500/70' : 'text-gray-500'}`}>
+                  <span className={`font-tech text-[9px] ${gamePhase === 'playing' ? 'text-red-500/70' : 'text-gray-500'}`}>
                     {gamePhase === 'playing' ? 'REC' : 'PAUSED'}
                   </span>
                 </div>
-                <div className="absolute top-2.5 right-3 font-mono text-[9px] text-gray-600">
+                <div className="absolute top-2.5 right-3 font-tech text-[9px] text-gray-600">
                   {new Date().toLocaleTimeString('en-US', { hour12: false })}
                 </div>
-                <div className="absolute bottom-2.5 left-3 font-mono text-[9px] text-gray-600">
+                <div className="absolute bottom-2.5 left-3 font-tech text-[9px] text-gray-600">
                   CAM-{currentLevel.id} | {currentLevel.name.toUpperCase()}
                 </div>
                 
                 {gamePhase === 'playing' && (
                   <div className="absolute bottom-2.5 right-3">
-                    <span className="font-mono text-[9px] text-gray-500">
+                    <span className="font-tech text-[9px] text-gray-500">
                       点击跳过 →
                     </span>
                   </div>
@@ -519,7 +539,7 @@ export default function Game() {
                       <span className="font-display text-[11px] text-green-400/80 group-hover:text-green-300 tracking-wider">
                         未发现异常
                       </span>
-                      <span className="font-mono text-[9px] text-gray-600">
+                      <span className="font-tech text-[9px] text-gray-600">
                         继续前进
                       </span>
                     </div>
@@ -538,7 +558,7 @@ export default function Game() {
                       <span className="font-display text-[11px] text-[#E53935]/80 group-hover:text-[#E53935] tracking-wider">
                         发现异常
                       </span>
-                      <span className="font-mono text-[9px] text-gray-600">
+                      <span className="font-tech text-[9px] text-gray-600">
                         立即返回
                       </span>
                     </div>
@@ -564,7 +584,7 @@ export default function Game() {
               )}
 
               {gamePhase === 'choosing' && (
-                <p className="font-mono text-[9px] text-gray-700 text-center mt-4 tracking-wider">
+                <p className="font-tech text-[9px] text-gray-700 text-center mt-4 tracking-wider">
                   仔细观察画面，判断是否存在异常
                 </p>
               )}
@@ -593,7 +613,7 @@ export default function Game() {
                 </svg>
               </motion.div>
               <p className="font-display text-lg text-green-400 mb-1 tracking-wider">判断正确</p>
-              <p className="font-mono text-[10px] text-gray-600">
+              <p className="font-tech text-[10px] text-gray-600">
                 {currentVideoIsNormal ? '空间坐标已确认，正在推进...' : '异常已标记，重新扫描中...'}
               </p>
             </motion.div>
@@ -619,7 +639,7 @@ export default function Game() {
                 </svg>
               </motion.div>
               <p className="font-display text-lg text-[#E53935] mb-1 tracking-wider chromatic-text">判断错误</p>
-              <p className="font-mono text-[10px] text-gray-600">
+              <p className="font-tech text-[10px] text-gray-600">
                 空间坐标偏移，重新加载...
               </p>
             </motion.div>
@@ -656,10 +676,10 @@ export default function Game() {
                 <h2 className="font-impact text-[120px] md:text-[180px] text-white/10 leading-none absolute inset-0 flex items-center justify-center pointer-events-none">
                   {LEVELS[currentLevelIndex + 1]?.id ?? '0'}
                 </h2>
-                <h2 className="font-display font-black text-4xl md:text-6xl text-white tracking-wider">
-                  LEVEL <span className="text-[#E53935]">{LEVELS[currentLevelIndex + 1]?.id ?? '0'}</span>
+                <h2                 className="font-display text-4xl md:text-6xl text-white tracking-wider text-glow-red">
+                  LEVEL <span className="text-[#E53935] chromatic-text">{LEVELS[currentLevelIndex + 1]?.id ?? '0'}</span>
                 </h2>
-                <p className="font-mono text-xs text-[#E53935]/70 tracking-wide">
+                <p className="font-tech text-xs text-[#E53935]/70 tracking-wide">
                   {LEVELS[currentLevelIndex + 1]?.description ?? ''}
                 </p>
               </motion.div>
@@ -691,7 +711,7 @@ export default function Game() {
                 initial={{ opacity: 0, y: -30, filter: 'blur(8px)' }}
                 animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
                 transition={{ delay: 0.3, duration: 1.2, ease: [0.23, 1, 0.32, 1] }}
-                className="font-display font-black text-5xl md:text-8xl text-white mb-4 tracking-[0.1em] chromatic-text relative z-10"
+                className="font-display text-5xl md:text-8xl text-white mb-4 tracking-[0.1em] chromatic-text text-glow-green relative z-10"
               >
                 ESCAPED
               </motion.h1>
@@ -713,7 +733,7 @@ export default function Game() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 2 }}
-                className="font-mono text-[11px] text-gray-600 relative z-10"
+                className="font-tech text-[11px] text-gray-600 relative z-10"
               >
                 得分: {score}/{totalAttempts} | 通过层级: {LEVELS.length}
               </motion.p>
@@ -721,7 +741,7 @@ export default function Game() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 3.5 }}
-                className="font-mono text-[10px] text-[#E53935]/70 mt-10 relative z-10"
+                className="font-tech text-[10px] text-[#E53935]/70 mt-10 relative z-10"
               >
                 ...还是说，这只是Level 0的幻觉？
               </motion.p>
@@ -767,10 +787,10 @@ export default function Game() {
       )}
 
       {/* 系统信息角落 */}
-      <div className="fixed bottom-4 left-4 z-30 font-mono text-[8px] text-gray-800">
+      <div className="fixed bottom-4 left-4 z-30 font-tech text-[8px] text-gray-800">
         <p>BACKROOMS.PROTOCOL.v0.1</p>
       </div>
-      <div className="fixed bottom-4 right-4 z-30 font-mono text-[8px] text-gray-800">
+      <div className="fixed bottom-4 right-4 z-30 font-tech text-[8px] text-gray-800">
         <p>ANOMALY_DETECTION_ACTIVE</p>
       </div>
     </div>

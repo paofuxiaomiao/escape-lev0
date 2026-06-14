@@ -7,11 +7,13 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Game from "./pages/Game";
 import Admin from "./pages/Admin";
+import LevelMap from "./pages/LevelMap";
 
 function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/map"} component={LevelMap} />
       <Route path={"/game"} component={Game} />
       <Route path={"/admin"} component={Admin} />
       <Route path={"/404"} component={NotFound} />

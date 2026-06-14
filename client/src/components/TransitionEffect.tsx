@@ -213,7 +213,7 @@ export function TransitionEffect({
                 initial={{ scale: 3, opacity: 0, filter: 'blur(15px)', rotate: -3 }}
                 animate={{ scale: 1, opacity: 1, filter: 'blur(0px)', rotate: 0 }}
                 transition={{ duration: 0.5, delay: 0.1, ease: [0.23, 1, 0.32, 1] }}
-                className="font-display font-black text-3xl md:text-5xl tracking-wider chromatic-text"
+                className="font-display text-3xl md:text-5xl tracking-wider chromatic-text"
                 style={{
                   color: type === 'wrong' ? '#E53935' : type === 'correct' ? '#00FF41' : '#fff',
                 }}
@@ -227,7 +227,7 @@ export function TransitionEffect({
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4, duration: 0.4 }}
-                  className="font-mono text-sm text-gray-400 mt-4 tracking-widest uppercase"
+                  className="font-tech text-sm text-gray-400 mt-4 tracking-widest uppercase"
                 >
                   {levelName}
                 </motion.p>
@@ -247,7 +247,7 @@ export function TransitionEffect({
           )}
 
           {/* Corner decorations */}
-          <div className="absolute top-6 left-6 font-mono text-[9px] text-gray-600 z-10">
+          <div className="absolute top-6 left-6 font-tech text-[9px] text-gray-600 z-10">
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -256,7 +256,7 @@ export function TransitionEffect({
               TRANSITION.PROTOCOL
             </motion.p>
           </div>
-          <div className="absolute bottom-6 right-6 font-mono text-[9px] text-gray-600 z-10">
+          <div className="absolute bottom-6 right-6 font-tech text-[9px] text-gray-600 z-10">
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
