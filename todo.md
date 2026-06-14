@@ -26,3 +26,4 @@
 - [x] 修复LevelMap层级状态逻辑（locked判断方向修正，levelId递减方向）
 - [x] 修复LevelMap与Game之间的进度存储格式一致性
 - [x] 字体升级为Audiowide+Share Tech Mono+Rajdhani组合，添加发光/色差/描边特效
+- [x] 全局BGM播放器（循环播放The_False_Wall.mp3，带静音/音量控制按钮）

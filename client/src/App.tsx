@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import Game from "./pages/Game";
 import Admin from "./pages/Admin";
 import LevelMap from "./pages/LevelMap";
+import BGMPlayer from "./components/BGMPlayer";
 
 function Router() {
   return (
@@ -28,6 +29,7 @@ function App() {
       <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
           <Toaster />
+          <BGMPlayer />
           <Router />
         </TooltipProvider>
       </ThemeProvider>
