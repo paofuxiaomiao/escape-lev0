@@ -456,14 +456,18 @@ export default function Game() {
                 onClick={handleSkipToChoose}
               >
                 {currentVideoUrl ? (
-                  <video
-                    ref={videoRef}
-                    src={currentVideoUrl}
-                    className="absolute inset-0 w-full h-full object-cover"
-                    autoPlay
-                    playsInline
-                    onEnded={handleVideoEnded}
-                  />
+                  <>
+                    <video
+                      ref={videoRef}
+                      src={currentVideoUrl}
+                      className="absolute inset-0 w-full h-full object-cover hole-chromatic hole-breath"
+                      autoPlay
+                      playsInline
+                      onEnded={handleVideoEnded}
+                    />
+                    {/* 扫描线叠加层 */}
+                    <div className="hole-scanlines z-[5]" />
+                  </>
                 ) : (
                   <>
                     <div 

@@ -437,6 +437,11 @@
   animation: holeBreath 4s ease-in-out infinite;
 }
 
+/* Combined: both chromatic + breath on same element */
+.hole-chromatic.hole-breath {
+  animation: holeChromatic 3s ease-in-out infinite, holeBreath 4s ease-in-out infinite;
+}
+
 .hole-scanlines {
   position: absolute;
   inset: 0;
