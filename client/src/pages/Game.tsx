@@ -312,9 +312,23 @@ export default function Game() {
         )}
       </AnimatePresence>
 
+      {/* 返回地图按钮 */}
+      {gamePhase !== 'complete' && gamePhase !== 'intro' && (
+        <button
+          onClick={() => navigate('/map')}
+          className="fixed top-3 left-4 z-50 flex items-center gap-1.5 px-3 py-1.5 bg-black/50 backdrop-blur-sm border border-gray-700/50 rounded
+            hover:border-yellow-500/50 hover:bg-black/70 transition-all duration-300 active:scale-[0.97] group"
+        >
+          <svg className="w-3.5 h-3.5 text-gray-400 group-hover:text-yellow-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+          </svg>
+          <span className="font-tech text-[9px] text-gray-400 group-hover:text-yellow-300 transition-colors tracking-wider">MAP</span>
+        </button>
+      )}
+
       {/* 顶部HUD - 升级字体 */}
       <div className="fixed top-0 left-0 right-0 z-40 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-20">
           <div className="flex items-center gap-1.5">
             <span className="font-tech text-[10px] text-gray-500 uppercase tracking-[0.2em]">Level</span>
             <span className="font-impact text-3xl text-white leading-none">{currentLevel.id}</span>
@@ -668,76 +682,58 @@ export default function Game() {
             </motion.div>
           )}
 
-          {/* 通关 */}
+          {/* 通关 - 海报展示 */}
           {gamePhase === 'complete' && (
             <motion.div
               key="complete"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 2 }}
-              className="text-center px-4"
+              transition={{ duration: 1.5 }}
+              className="fixed inset-0 flex items-center justify-center bg-black z-30"
             >
-              {/* 巨大背景数字 */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
-                <motion.span
-                  initial={{ opacity: 0, scale: 3 }}
-                  animate={{ opacity: 0.03, scale: 1 }}
-                  transition={{ duration: 2 }}
-                  className="font-impact text-[300px] md:text-[500px] text-white leading-none"
-                >
-                  0
-                </motion.span>
-              </div>
-
-              <motion.h1
-                initial={{ opacity: 0, y: -30, filter: 'blur(8px)' }}
-                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                transition={{ delay: 0.3, duration: 1.2, ease: [0.23, 1, 0.32, 1] }}
-                className="font-display text-5xl md:text-8xl text-white mb-4 tracking-[0.1em] chromatic-text text-glow-green relative z-10"
-              >
-                ESCAPED
-              </motion.h1>
+              {/* 海报图片 */}
               <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: '8rem' }}
-                transition={{ delay: 1, duration: 0.8 }}
-                className="h-[2px] bg-gradient-to-r from-transparent via-green-500 to-transparent mx-auto mb-6"
-              />
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1.5 }}
-                className="font-display text-sm text-gray-400 mb-1 tracking-wider relative z-10"
+                initial={{ opacity: 0, scale: 0.9, filter: 'blur(10px)' }}
+                animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                transition={{ delay: 0.5, duration: 1.5, ease: [0.23, 1, 0.32, 1] }}
+                className="relative w-full h-full flex items-center justify-center p-4"
               >
-                你成功逃离了后室
-              </motion.p>
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 2 }}
-                className="font-tech text-[11px] text-gray-600 relative z-10"
+                <img
+                  src="/manus-storage/ending_poster_d88e314f.png"
+                  alt="欢迎来到 LEVEL 0"
+                  className="max-w-full max-h-[85vh] object-contain rounded-sm shadow-[0_0_60px_rgba(180,150,50,0.15)]"
+                />
+              </motion.div>
+
+              {/* 得分信息 */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 2.5, duration: 0.8 }}
+                className="absolute bottom-8 left-0 right-0 text-center z-40"
               >
-                得分: {score}/{totalAttempts} | 通过层级: {LEVELS.length}
-              </motion.p>
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 3.5 }}
-                className="font-tech text-[10px] text-[#E53935]/70 mt-10 relative z-10"
-              >
-                ...还是说，这只是Level 0的幻觉？
-              </motion.p>
-              <motion.button
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 4.5 }}
-                onClick={() => navigate('/')}
-                className="mt-8 font-display text-[11px] text-gray-500 border border-gray-800 px-6 py-2.5 rounded-sm tracking-wider
-                  hover:border-[#E53935]/50 hover:text-[#E53935] hover:shadow-[0_0_20px_rgba(229,57,53,0.1)]
-                  transition-all duration-300 relative z-10"
-              >
-                返回入口
-              </motion.button>
+                <p className="font-tech text-[11px] text-yellow-600/70 mb-3">
+                  得分: {score}/{totalAttempts} | 通过层级: {LEVELS.length}
+                </p>
+                <div className="flex items-center justify-center gap-4">
+                  <button
+                    onClick={() => navigate('/map')}
+                    className="font-tech text-[11px] text-gray-400 border border-gray-700 px-5 py-2 rounded-sm tracking-wider
+                      hover:border-yellow-500/50 hover:text-yellow-300 hover:shadow-[0_0_15px_rgba(180,150,50,0.1)]
+                      transition-all duration-300"
+                  >
+                    返回地图
+                  </button>
+                  <button
+                    onClick={() => navigate('/')}
+                    className="font-tech text-[11px] text-gray-400 border border-gray-700 px-5 py-2 rounded-sm tracking-wider
+                      hover:border-[#E53935]/50 hover:text-[#E53935] hover:shadow-[0_0_15px_rgba(229,57,53,0.1)]
+                      transition-all duration-300"
+                  >
+                    返回入口
+                  </button>
+                </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
