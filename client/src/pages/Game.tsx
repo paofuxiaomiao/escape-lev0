@@ -496,28 +496,20 @@ export default function Game() {
                   {new Date().toLocaleTimeString('en-US', { hour12: false })}
                 </div>
 
-                {/* Logo水印 - 遮住视频原始水印 */}
-                <div className="absolute bottom-2 right-2 z-20">
-                  <img
-                    src="/manus-storage/lev0_watermark_logo_9a43a1ec.png"
-                    alt="LEV0"
-                    className="w-16 h-16 md:w-20 md:h-20 opacity-80 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
-                  />
-                </div>
                 <div className="absolute bottom-2.5 left-3 font-tech text-[9px] text-gray-500 z-20">
                   CAM-{currentLevel.id} | {currentLevel.name.toUpperCase()}
                 </div>
                 
                 {gamePhase === 'playing' && (
-                  <div className="absolute top-2.5 left-1/2 -translate-x-1/2 z-20">
-                    <span className="font-tech text-[9px] text-gray-500 bg-black/40 px-2 py-0.5 rounded">
+                  <div className="absolute bottom-2.5 right-3 z-20">
+                    <span className="font-tech text-[9px] text-gray-500">
                       点击跳过 →
                     </span>
                   </div>
                 )}
                 {gamePhase === 'choosing' && (
-                  <div className="absolute top-2.5 left-1/2 -translate-x-1/2 z-20">
-                    <span className="font-display text-[9px] text-[#E53935]/70 animate-pulse tracking-wider bg-black/40 px-2 py-0.5 rounded">
+                  <div className="absolute bottom-2.5 right-3 z-20">
+                    <span className="font-display text-[9px] text-[#E53935]/70 animate-pulse tracking-wider">
                       请做出判断 ▼
                     </span>
                   </div>
