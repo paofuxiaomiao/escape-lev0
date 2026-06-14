@@ -50,6 +50,12 @@ const LEVELS: LevelConfig[] = [
     bgImage: '/manus-storage/bg_office_26395507.png',
     systemMsg: '进入核心工作区...'
   },
+  { 
+    id: 0, name: '最终挑战', 
+    description: 'LEV0核心区域...最终审判...', 
+    bgImage: '/manus-storage/bg_welcome_2345c7fc.png',
+    systemMsg: '正在接入LEV0核心...'
+  },
 ];
 
 type GamePhase = 'intro' | 'loading' | 'playing' | 'choosing' | 'correct' | 'wrong' | 'transitioning' | 'complete';
@@ -209,7 +215,7 @@ export default function Game() {
     const nextIndex = currentLevelIndex + 1;
     if (nextIndex >= LEVELS.length) {
       // Update progress - all levels completed
-      localStorage.setItem('escape_lev0_progress', JSON.stringify({ level: 0 }));
+      localStorage.setItem('escape_lev0_progress', JSON.stringify({ level: -1 }));
       setTransitionType('gameEnd');
       setShowTransition(true);
       setTimeout(() => {

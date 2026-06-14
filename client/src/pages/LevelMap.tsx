@@ -61,8 +61,17 @@ const LEVELS: LevelNode[] = [
     name: '室内开发',
     subtitle: 'DEV ROOM',
     image: '/manus-storage/lev5_door_3551cd73.png',
-    x: 88,
+    x: 78,
     y: 55,
+  },
+  {
+    id: 0,
+    key: 'final',
+    name: '最终挑战',
+    subtitle: 'LEV0 CORE',
+    image: '/manus-storage/bg_welcome_2345c7fc.png',
+    x: 93,
+    y: 35,
   },
 ];
 
@@ -97,8 +106,10 @@ export default function LevelMap() {
   }, [currentLevel, navigate]);
 
   const getLevelStatus = (levelId: number) => {
-    // Level IDs go from 5 (first) to 1 (last)
+    // Level IDs go from 5 (first) to 0 (final challenge)
     // currentLevel starts at 5 and decreases as player progresses
+    // -1 means all completed
+    if (currentLevel === -1) return 'completed';
     if (levelId < currentLevel) return 'locked';
     if (levelId === currentLevel) return 'current';
     return 'completed';
