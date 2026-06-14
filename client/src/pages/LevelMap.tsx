@@ -21,10 +21,12 @@ interface LevelNode {
     width: number;
     height: number;
     rotate?: number;
-    borderRadius: string; // 不规则形状
+    // SVG clip-path 用不规则多边形模拟碎裂洞口
+    clipPath: string;
   };
 }
 
+// 不规则碎裂洞口的clip-path（模拟墙壁被砸出的洞）
 const LEVELS: LevelNode[] = [
   {
     id: 5,
@@ -38,7 +40,7 @@ const LEVELS: LevelNode[] = [
       width: 22,
       height: 34,
       rotate: -1,
-      borderRadius: '45% 55% 48% 52% / 40% 60% 45% 55%',
+      clipPath: 'polygon(12% 3%, 25% 0%, 42% 2%, 58% 0%, 72% 4%, 85% 1%, 95% 8%, 98% 18%, 100% 32%, 97% 48%, 100% 62%, 98% 78%, 95% 88%, 100% 95%, 92% 100%, 78% 97%, 62% 100%, 48% 98%, 32% 100%, 18% 97%, 8% 100%, 2% 92%, 0% 78%, 3% 62%, 0% 48%, 2% 32%, 0% 18%, 3% 8%)',
     },
   },
   {
@@ -53,7 +55,7 @@ const LEVELS: LevelNode[] = [
       width: 18,
       height: 30,
       rotate: 1,
-      borderRadius: '50% 45% 55% 42% / 55% 45% 50% 48%',
+      clipPath: 'polygon(15% 0%, 30% 3%, 48% 0%, 65% 2%, 82% 0%, 95% 5%, 100% 15%, 97% 30%, 100% 45%, 98% 60%, 100% 75%, 97% 88%, 100% 96%, 88% 100%, 72% 97%, 55% 100%, 38% 98%, 22% 100%, 8% 97%, 0% 90%, 3% 75%, 0% 58%, 2% 42%, 0% 28%, 3% 12%)',
     },
   },
   {
@@ -68,7 +70,7 @@ const LEVELS: LevelNode[] = [
       width: 20,
       height: 32,
       rotate: 0,
-      borderRadius: '42% 58% 45% 55% / 50% 42% 55% 48%',
+      clipPath: 'polygon(8% 2%, 22% 0%, 38% 4%, 55% 0%, 70% 3%, 88% 0%, 97% 7%, 100% 20%, 96% 35%, 100% 50%, 97% 65%, 100% 80%, 96% 92%, 100% 98%, 85% 100%, 68% 96%, 52% 100%, 35% 97%, 20% 100%, 5% 96%, 0% 88%, 4% 72%, 0% 55%, 3% 40%, 0% 25%, 4% 10%)',
     },
   },
   {
@@ -83,7 +85,7 @@ const LEVELS: LevelNode[] = [
       width: 26,
       height: 36,
       rotate: 1,
-      borderRadius: '48% 52% 42% 58% / 45% 55% 48% 52%',
+      clipPath: 'polygon(10% 0%, 28% 3%, 45% 0%, 62% 4%, 80% 0%, 93% 5%, 100% 12%, 96% 28%, 100% 42%, 97% 58%, 100% 72%, 96% 85%, 100% 95%, 90% 100%, 75% 96%, 58% 100%, 42% 97%, 25% 100%, 10% 96%, 0% 90%, 4% 75%, 0% 60%, 3% 45%, 0% 30%, 4% 15%)',
     },
   },
   {
@@ -98,7 +100,7 @@ const LEVELS: LevelNode[] = [
       width: 20,
       height: 38,
       rotate: -1,
-      borderRadius: '55% 45% 50% 50% / 48% 52% 45% 55%',
+      clipPath: 'polygon(5% 4%, 20% 0%, 38% 3%, 55% 0%, 72% 4%, 90% 0%, 98% 8%, 100% 22%, 95% 38%, 100% 52%, 96% 68%, 100% 82%, 95% 92%, 100% 100%, 82% 96%, 65% 100%, 48% 96%, 30% 100%, 15% 96%, 0% 92%, 4% 78%, 0% 62%, 3% 45%, 0% 30%, 4% 15%)',
     },
   },
   {
@@ -113,7 +115,7 @@ const LEVELS: LevelNode[] = [
       width: 28,
       height: 46,
       rotate: 0,
-      borderRadius: '40% 60% 55% 45% / 52% 48% 42% 58%',
+      clipPath: 'polygon(6% 2%, 18% 0%, 32% 5%, 48% 0%, 62% 3%, 78% 0%, 92% 4%, 100% 10%, 96% 25%, 100% 38%, 95% 52%, 100% 65%, 96% 78%, 100% 90%, 94% 100%, 78% 95%, 62% 100%, 45% 96%, 30% 100%, 15% 95%, 0% 92%, 5% 78%, 0% 62%, 4% 48%, 0% 32%, 5% 18%)',
     },
   },
 ];
@@ -187,10 +189,10 @@ export default function LevelMap() {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ 
                   opacity: 1, 
-                  scale: isSelected ? 1.1 : isHovered && status !== 'locked' ? 1.03 : 1,
+                  scale: isSelected ? 1.05 : 1,
                 }}
                 transition={{ delay: 0.2 + i * 0.12, duration: 0.5, type: 'spring', stiffness: 120 }}
-                className="absolute cursor-pointer"
+                className="absolute"
                 style={{
                   left: `${level.hole.left}%`,
                   top: `${level.hole.top}%`,
@@ -202,49 +204,47 @@ export default function LevelMap() {
                 onMouseLeave={() => setHoveredLevel(null)}
                 onClick={() => handleLevelClick(level.id)}
               >
-                {/* 洞口 - 不规则形状裁切 */}
+                {/* 洞口 - 不规则碎裂形状裁切 */}
                 <div 
                   className={`
-                    relative w-full h-full overflow-hidden transition-all duration-500
-                    ${status === 'locked' ? 'cursor-not-allowed' : ''}
+                    relative w-full h-full overflow-hidden
+                    ${status === 'locked' ? 'cursor-not-allowed' : 'cursor-pointer'}
                   `}
-                  style={{ borderRadius: level.hole.borderRadius }}
+                  style={{ clipPath: level.hole.clipPath }}
                 >
-                  {/* 图片 */}
+                  {/* 图片 - hover只改变亮度不改变尺寸，避免露出底图 */}
                   <img 
                     src={level.image} 
                     alt={level.name}
                     className={`
-                      w-full h-full object-cover transition-all duration-700
+                      w-full h-full object-cover transition-all duration-500
                       ${status === 'locked' ? 'grayscale brightness-50 blur-[1px]' : ''}
-                      ${isHovered && status !== 'locked' ? 'scale-110 brightness-110' : ''}
+                      ${isHovered && status !== 'locked' ? 'brightness-125' : ''}
                     `}
                   />
 
-                  {/* 洞口内阴影 - 模拟墙壁厚度 */}
+                  {/* 洞口内阴影 - 模拟墙壁厚度和深度 */}
                   <div 
                     className="absolute inset-0 pointer-events-none"
                     style={{
-                      boxShadow: 'inset 0 0 25px 10px rgba(0,0,0,0.7), inset 0 0 50px 5px rgba(0,0,0,0.4)',
-                      borderRadius: level.hole.borderRadius,
+                      boxShadow: 'inset 0 0 30px 15px rgba(0,0,0,0.8), inset 0 0 60px 8px rgba(0,0,0,0.5)',
                     }}
                   />
 
                   {/* 暗色叠加 */}
-                  <div className={`absolute inset-0 transition-opacity duration-300 ${
+                  <div className={`absolute inset-0 transition-opacity duration-300 pointer-events-none ${
                     status === 'locked' ? 'bg-black/40' : 
-                    isHovered ? 'bg-black/10' : 'bg-black/20'
-                  }`} style={{ borderRadius: level.hole.borderRadius }} />
+                    isHovered ? 'bg-black/5' : 'bg-black/15'
+                  }`} />
 
                   {/* 当前层级发光 */}
                   {status === 'current' && (
                     <motion.div
-                      animate={{ opacity: [0.4, 0.8, 0.4] }}
+                      animate={{ opacity: [0.3, 0.7, 0.3] }}
                       transition={{ duration: 2, repeat: Infinity }}
                       className="absolute inset-0 pointer-events-none"
                       style={{ 
-                        boxShadow: 'inset 0 0 20px rgba(180,180,50,0.3), 0 0 30px rgba(180,180,50,0.2)',
-                        borderRadius: level.hole.borderRadius,
+                        boxShadow: 'inset 0 0 25px rgba(180,180,50,0.3)',
                       }}
                     />
                   )}
@@ -282,21 +282,19 @@ export default function LevelMap() {
                   </div>
                 </div>
 
-                {/* 洞口外边缘 - 裂缝效果 */}
-                <div 
-                  className="absolute inset-[-3px] pointer-events-none"
-                  style={{ 
-                    borderRadius: level.hole.borderRadius,
-                    border: status === 'current' 
-                      ? '2px solid rgba(180,180,50,0.4)' 
-                      : status === 'completed'
-                      ? '1px solid rgba(80,180,80,0.2)'
-                      : '1px solid rgba(40,30,20,0.3)',
-                    boxShadow: status === 'current' 
-                      ? '0 0 15px rgba(180,180,50,0.2)' 
-                      : 'none',
-                  }}
-                />
+                {/* 洞口外边缘裂缝效果 - 用同样的clip-path但稍大一圈 */}
+                {status === 'current' && (
+                  <motion.div
+                    animate={{ opacity: [0.3, 0.6, 0.3] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="absolute inset-[-4px] pointer-events-none"
+                    style={{ 
+                      clipPath: level.hole.clipPath,
+                      boxShadow: '0 0 20px rgba(180,180,50,0.4), 0 0 40px rgba(180,180,50,0.2)',
+                      border: '2px solid rgba(180,180,50,0.4)',
+                    }}
+                  />
+                )}
               </motion.div>
             );
           })}
