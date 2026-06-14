@@ -484,29 +484,37 @@ export default function Game() {
                   </>
                 )}
 
-                {/* 帧装饰 */}
-                <div className="absolute top-2.5 left-3 flex items-center gap-1.5">
+                {/* 帧装饰 - 顶部 */}
+                <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-black/70 to-transparent z-10" />
+                <div className="absolute top-2.5 left-3 flex items-center gap-1.5 z-20">
                   <span className={`inline-block w-1.5 h-1.5 rounded-full ${gamePhase === 'playing' ? 'bg-red-500 animate-pulse' : 'bg-gray-500'}`} />
                   <span className={`font-tech text-[9px] ${gamePhase === 'playing' ? 'text-red-500/70' : 'text-gray-500'}`}>
                     {gamePhase === 'playing' ? 'REC' : 'PAUSED'}
                   </span>
                 </div>
-                <div className="absolute top-2.5 right-3 font-tech text-[9px] text-gray-600">
+                <div className="absolute top-2.5 right-3 font-tech text-[9px] text-gray-600 z-20">
                   {new Date().toLocaleTimeString('en-US', { hour12: false })}
                 </div>
-                <div className="absolute bottom-2.5 left-3 font-tech text-[9px] text-gray-600">
+
+                {/* 底部遮挡条 - 遮住水印 */}
+                <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-black via-black/90 to-transparent z-10" />
+                <div className="absolute bottom-0 left-0 right-0 h-10 bg-black z-10" />
+                <div className="absolute bottom-2.5 left-3 font-tech text-[9px] text-gray-500 z-20">
                   CAM-{currentLevel.id} | {currentLevel.name.toUpperCase()}
+                </div>
+                <div className="absolute bottom-5 left-3 right-3 z-20">
+                  <div className="w-full h-[1px] bg-gray-700/40" />
                 </div>
                 
                 {gamePhase === 'playing' && (
-                  <div className="absolute bottom-2.5 right-3">
+                  <div className="absolute bottom-2.5 right-3 z-20">
                     <span className="font-tech text-[9px] text-gray-500">
                       点击跳过 →
                     </span>
                   </div>
                 )}
                 {gamePhase === 'choosing' && (
-                  <div className="absolute bottom-2.5 right-3">
+                  <div className="absolute bottom-2.5 right-3 z-20">
                     <span className="font-display text-[9px] text-[#E53935]/70 animate-pulse tracking-wider">
                       请做出判断 ▼
                     </span>
