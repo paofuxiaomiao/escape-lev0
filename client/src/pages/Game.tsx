@@ -116,32 +116,26 @@ export default function Game() {
     return () => clearTimeout(timer);
   }, []);
 
-  // 从后端获取视频对并随机选一个
+  // 每关必须展示异常视频，玩家需要发现异常才能过关
   const loadNewRound = useCallback(async () => {
     try {
       const response = await fetch(`/api/trpc/game.getVideoPair?input=${encodeURIComponent(JSON.stringify({ json: { levelNumber: currentLevel.id } }))}`);
       const result = await response.json();
       const data = result?.result?.data?.json;
 
-      if (data && (data.normal || data.anomaly)) {
-        const showNormal = data.normal && data.anomaly
-          ? Math.random() > 0.4
-          : !!data.normal;
-
-        if (showNormal && data.normal) {
-          setCurrentVideoIsNormal(true);
-          setCurrentVideoUrl(data.normal.videoUrl);
-        } else if (data.anomaly) {
-          setCurrentVideoIsNormal(false);
-          setCurrentVideoUrl(data.anomaly.videoUrl);
-        } else if (data.normal) {
-          setCurrentVideoIsNormal(true);
-          setCurrentVideoUrl(data.normal.videoUrl);
-        }
+      if (data && data.anomaly) {
+        // 始终展示异常视频
+        setCurrentVideoIsNormal(false);
+        setCurrentVideoUrl(data.anomaly.videoUrl);
+        setHasVideos(true);
+      } else if (data && data.normal) {
+        // 如果没有异常视频，回退到正常视频
+        setCurrentVideoIsNormal(true);
+        setCurrentVideoUrl(data.normal.videoUrl);
         setHasVideos(true);
       } else {
         setHasVideos(false);
-        setCurrentVideoIsNormal(Math.random() > 0.4);
+        setCurrentVideoIsNormal(false);
         setCurrentVideoUrl(null);
       }
 
@@ -150,7 +144,7 @@ export default function Game() {
       }, 1500);
     } catch (err) {
       setHasVideos(false);
-      setCurrentVideoIsNormal(Math.random() > 0.4);
+      setCurrentVideoIsNormal(false);
       setCurrentVideoUrl(null);
       setTimeout(() => {
         setGamePhase('playing');
@@ -168,36 +162,22 @@ export default function Game() {
     }
   }, [gamePhase]);
 
-  // 玩家选择 - 带转场效果
+  // 玩家选择 - 只有“发现异常”才能过关
   const handleChoice = useCallback((playerSaysAnomaly: boolean) => {
-    const isAnomaly = !currentVideoIsNormal;
-    const correct = playerSaysAnomaly === isAnomaly;
     setTotalAttempts(prev => prev + 1);
 
-    if (correct) {
+    if (playerSaysAnomaly) {
+      // 玩家选择“发现异常” -> 正确，进入下一关
       setScore(prev => prev + 1);
-      if (!isAnomaly) {
-        // 选对正常视频 -> 进入下一层（大转场）
-        setTransitionType('correct');
-        setShowTransition(true);
-        setGamePhase('correct');
-        setTimeout(() => {
-          setShowTransition(false);
-          advanceLevel();
-        }, 2500);
-      } else {
-        // 正确识别异常 -> 重新抽取（小转场）
-        setTransitionType('correct');
-        setShowTransition(true);
-        setGamePhase('correct');
-        setTimeout(() => {
-          setShowTransition(false);
-          setGamePhase('loading');
-          loadNewRound();
-        }, 2000);
-      }
+      setTransitionType('correct');
+      setShowTransition(true);
+      setGamePhase('correct');
+      setTimeout(() => {
+        setShowTransition(false);
+        advanceLevel();
+      }, 2500);
     } else {
-      // 选错 - 错误转场
+      // 玩家选择“未发现异常” -> 错误，重新播放当前关卡视频
       setTransitionType('wrong');
       setShowTransition(true);
       setShowGlitch(true);
@@ -209,7 +189,7 @@ export default function Game() {
         loadNewRound();
       }, 2500);
     }
-  }, [currentVideoIsNormal, loadNewRound]);
+  }, [loadNewRound]);
 
   const advanceLevel = useCallback(() => {
     const nextIndex = currentLevelIndex + 1;
@@ -244,29 +224,25 @@ export default function Game() {
         .then(r => r.json())
         .then(result => {
           const data = result?.result?.data?.json;
-          if (data && (data.normal || data.anomaly)) {
-            const showNormal = data.normal && data.anomaly ? Math.random() > 0.4 : !!data.normal;
-            if (showNormal && data.normal) {
-              setCurrentVideoIsNormal(true);
-              setCurrentVideoUrl(data.normal.videoUrl);
-            } else if (data.anomaly) {
-              setCurrentVideoIsNormal(false);
-              setCurrentVideoUrl(data.anomaly.videoUrl);
-            } else if (data.normal) {
-              setCurrentVideoIsNormal(true);
-              setCurrentVideoUrl(data.normal.videoUrl);
-            }
+          if (data && data.anomaly) {
+            // 始终展示异常视频
+            setCurrentVideoIsNormal(false);
+            setCurrentVideoUrl(data.anomaly.videoUrl);
+            setHasVideos(true);
+          } else if (data && data.normal) {
+            setCurrentVideoIsNormal(true);
+            setCurrentVideoUrl(data.normal.videoUrl);
             setHasVideos(true);
           } else {
             setHasVideos(false);
-            setCurrentVideoIsNormal(Math.random() > 0.4);
+            setCurrentVideoIsNormal(false);
             setCurrentVideoUrl(null);
           }
           setTimeout(() => setGamePhase('playing'), 1500);
         })
         .catch(() => {
           setHasVideos(false);
-          setCurrentVideoIsNormal(Math.random() > 0.4);
+          setCurrentVideoIsNormal(false);
           setCurrentVideoUrl(null);
           setTimeout(() => setGamePhase('playing'), 1500);
         });
@@ -618,9 +594,9 @@ export default function Game() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </motion.div>
-              <p className="font-display text-lg text-green-400 mb-1 tracking-wider">判断正确</p>
+              <p className="font-display text-lg text-green-400 mb-1 tracking-wider">异常已标记</p>
               <p className="font-tech text-[10px] text-gray-600">
-                {currentVideoIsNormal ? '空间坐标已确认，正在推进...' : '异常已标记，重新扫描中...'}
+                空间坐标已确认，正在推进下一区域...
               </p>
             </motion.div>
           )}
@@ -644,9 +620,9 @@ export default function Game() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </motion.div>
-              <p className="font-display text-lg text-[#E53935] mb-1 tracking-wider chromatic-text">判断错误</p>
+              <p className="font-display text-lg text-[#E53935] mb-1 tracking-wider chromatic-text">未发现异常</p>
               <p className="font-tech text-[10px] text-gray-600">
-                空间坐标偏移，重新加载...
+                这里有东西不对劲，再仔细看看...
               </p>
             </motion.div>
           )}
