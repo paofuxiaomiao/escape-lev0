@@ -212,7 +212,7 @@ export default function LevelMap() {
                   `}
                   style={{ clipPath: level.hole.clipPath }}
                 >
-                  {/* 图片 - hover只改变亮度不改变尺寸，避免露出底图 */}
+                  {/* 图片 - hover加色差+脉冲拉伸，不改变尺寸避免露出底图 */}
                   <img 
                     src={level.image} 
                     alt={level.name}
@@ -220,8 +220,14 @@ export default function LevelMap() {
                       w-full h-full object-cover transition-all duration-500
                       ${status === 'locked' ? 'grayscale brightness-50 blur-[1px]' : ''}
                       ${isHovered && status !== 'locked' ? 'brightness-125' : ''}
+                      ${(isHovered || isSelected) && status !== 'locked' ? 'hole-chromatic hole-breath' : ''}
                     `}
                   />
+
+                  {/* 扫描线叠加层 - hover/selected时显示 */}
+                  {(isHovered || isSelected) && status !== 'locked' && (
+                    <div className="hole-scanlines" />
+                  )}
 
                   {/* 洞口内阴影 - 模拟墙壁厚度和深度 */}
                   <div 
