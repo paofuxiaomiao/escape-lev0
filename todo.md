@@ -27,3 +27,5 @@
 - [x] 修复LevelMap与Game之间的进度存储格式一致性
 - [x] 字体升级为Audiowide+Share Tech Mono+Rajdhani组合，添加发光/色差/描边特效
 - [x] 全局BGM播放器（循环播放The_False_Wall.mp3，带静音/音量控制按钮）
+- [x] Level 5视频配置（原视频=正常，修改后视频=异常）已上传并写入数据库
+- [x] 修正路程地图图片顺序（LEV5进门=大厅红气球，LEV1室内开发=红门黄衣人）
