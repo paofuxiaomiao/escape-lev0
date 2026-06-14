@@ -1,13 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'wouter';
+import { trpc } from '@/lib/trpc';
 
 const LOGO_URL = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663760209689/WgMtkexYr4g2QwJyHJRwUN/lev0_logo-guPYvbB8GHrQsakkZZxeR9.webp';
 
 /**
  * 游戏主界面
- * 设计哲学：全屏沉浸式后室空间，视频播放+异常判断+层级推进
- * 当前为演示模式（无真实视频），展示完整的游戏流程和UI
+ * 核心玩法：每轮随机展示一个视频（正常或异常），玩家判断后推进
+ * 选对正常视频 -> 进入下一层级
+ * 正确识别异常 -> 重新抽取本层级
+ * 选错 -> 重新抽取本层级
  */
 
 interface LevelConfig {
@@ -51,18 +54,21 @@ const LEVELS: LevelConfig[] = [
   },
 ];
 
-type GamePhase = 'intro' | 'loading' | 'choosing' | 'correct' | 'wrong' | 'transitioning' | 'complete';
+type GamePhase = 'intro' | 'loading' | 'playing' | 'choosing' | 'correct' | 'wrong' | 'transitioning' | 'complete';
 
 export default function Game() {
   const [, navigate] = useLocation();
   const [currentLevelIndex, setCurrentLevelIndex] = useState(0);
   const [gamePhase, setGamePhase] = useState<GamePhase>('intro');
-  const [isAnomaly, setIsAnomaly] = useState(false);
+  const [currentVideoIsNormal, setCurrentVideoIsNormal] = useState(false);
+  const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
   const [score, setScore] = useState(0);
   const [totalAttempts, setTotalAttempts] = useState(0);
   const [showGlitch, setShowGlitch] = useState(false);
   const [flickerOpacity, setFlickerOpacity] = useState(1);
+  const [hasVideos, setHasVideos] = useState(true);
   const flickerRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const currentLevel = LEVELS[currentLevelIndex];
 
@@ -86,17 +92,66 @@ export default function Game() {
     return () => clearTimeout(timer);
   }, []);
 
-  // 加载新一轮
-  const loadNewRound = useCallback(() => {
-    const anomaly = Math.random() > 0.4;
-    setIsAnomaly(anomaly);
-    setTimeout(() => {
-      setGamePhase('choosing');
-    }, 2000);
+  // 从后端获取视频对并随机选一个
+  const loadNewRound = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/trpc/game.getVideoPair?input=${encodeURIComponent(JSON.stringify({ json: { levelNumber: currentLevel.id } }))}`);
+      const result = await response.json();
+      const data = result?.result?.data?.json;
+
+      if (data && (data.normal || data.anomaly)) {
+        // 随机决定展示正常还是异常视频
+        const showNormal = data.normal && data.anomaly
+          ? Math.random() > 0.4  // 40%概率展示正常视频
+          : !!data.normal;
+
+        if (showNormal && data.normal) {
+          setCurrentVideoIsNormal(true);
+          setCurrentVideoUrl(data.normal.videoUrl);
+        } else if (data.anomaly) {
+          setCurrentVideoIsNormal(false);
+          setCurrentVideoUrl(data.anomaly.videoUrl);
+        } else if (data.normal) {
+          setCurrentVideoIsNormal(true);
+          setCurrentVideoUrl(data.normal.videoUrl);
+        }
+        setHasVideos(true);
+      } else {
+        // 没有视频，使用演示模式
+        setHasVideos(false);
+        setCurrentVideoIsNormal(Math.random() > 0.4);
+        setCurrentVideoUrl(null);
+      }
+
+      setTimeout(() => {
+        setGamePhase('playing');
+      }, 1500);
+    } catch (err) {
+      // 出错时使用演示模式
+      setHasVideos(false);
+      setCurrentVideoIsNormal(Math.random() > 0.4);
+      setCurrentVideoUrl(null);
+      setTimeout(() => {
+        setGamePhase('playing');
+      }, 1500);
+    }
+  }, [currentLevel]);
+
+  // 视频播放结束后进入选择阶段
+  const handleVideoEnded = useCallback(() => {
+    setGamePhase('choosing');
   }, []);
+
+  // 手动进入选择阶段（点击视频跳过）
+  const handleSkipToChoose = useCallback(() => {
+    if (gamePhase === 'playing') {
+      setGamePhase('choosing');
+    }
+  }, [gamePhase]);
 
   // 玩家选择
   const handleChoice = useCallback((playerSaysAnomaly: boolean) => {
+    const isAnomaly = !currentVideoIsNormal;
     const correct = playerSaysAnomaly === isAnomaly;
     setTotalAttempts(prev => prev + 1);
 
@@ -124,7 +179,7 @@ export default function Game() {
         loadNewRound();
       }, 2200);
     }
-  }, [isAnomaly]);
+  }, [currentVideoIsNormal, loadNewRound]);
 
   const advanceLevel = useCallback(() => {
     const nextIndex = currentLevelIndex + 1;
@@ -136,9 +191,38 @@ export default function Game() {
     setTimeout(() => {
       setCurrentLevelIndex(nextIndex);
       setGamePhase('loading');
-      const anomaly = Math.random() > 0.4;
-      setIsAnomaly(anomaly);
-      setTimeout(() => setGamePhase('choosing'), 2000);
+      // 加载下一层级视频
+      const nextLevel = LEVELS[nextIndex];
+      fetch(`/api/trpc/game.getVideoPair?input=${encodeURIComponent(JSON.stringify({ json: { levelNumber: nextLevel.id } }))}`)
+        .then(r => r.json())
+        .then(result => {
+          const data = result?.result?.data?.json;
+          if (data && (data.normal || data.anomaly)) {
+            const showNormal = data.normal && data.anomaly ? Math.random() > 0.4 : !!data.normal;
+            if (showNormal && data.normal) {
+              setCurrentVideoIsNormal(true);
+              setCurrentVideoUrl(data.normal.videoUrl);
+            } else if (data.anomaly) {
+              setCurrentVideoIsNormal(false);
+              setCurrentVideoUrl(data.anomaly.videoUrl);
+            } else if (data.normal) {
+              setCurrentVideoIsNormal(true);
+              setCurrentVideoUrl(data.normal.videoUrl);
+            }
+            setHasVideos(true);
+          } else {
+            setHasVideos(false);
+            setCurrentVideoIsNormal(Math.random() > 0.4);
+            setCurrentVideoUrl(null);
+          }
+          setTimeout(() => setGamePhase('playing'), 1500);
+        })
+        .catch(() => {
+          setHasVideos(false);
+          setCurrentVideoIsNormal(Math.random() > 0.4);
+          setCurrentVideoUrl(null);
+          setTimeout(() => setGamePhase('playing'), 1500);
+        });
     }, 2800);
   }, [currentLevelIndex]);
 
@@ -268,7 +352,6 @@ export default function Game() {
               className="w-full max-w-xl"
             >
               <div className="relative aspect-video bg-black/60 border border-gray-800/80 rounded-sm overflow-hidden backdrop-blur-sm">
-                {/* 视频加载占位 */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                   <motion.div
                     animate={{ rotate: 360 }}
@@ -279,11 +362,66 @@ export default function Game() {
                     {currentLevel.systemMsg}
                   </p>
                 </div>
-
-                {/* 视频帧装饰 */}
                 <div className="absolute top-2.5 left-3 flex items-center gap-1.5">
                   <span className="inline-block w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
                   <span className="font-mono text-[9px] text-red-500/70">REC</span>
+                </div>
+                <div className="absolute bottom-2.5 left-3 font-mono text-[9px] text-gray-600">
+                  CAM-{currentLevel.id} | {currentLevel.name.toUpperCase()}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* 播放视频 / 选择阶段 */}
+          {(gamePhase === 'playing' || gamePhase === 'choosing') && (
+            <motion.div
+              key="playing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="w-full max-w-xl"
+            >
+              {/* 视频区域 */}
+              <div 
+                className="relative aspect-video bg-black/60 border border-gray-800/80 rounded-sm overflow-hidden backdrop-blur-sm mb-6 cursor-pointer"
+                onClick={handleSkipToChoose}
+              >
+                {currentVideoUrl ? (
+                  <video
+                    ref={videoRef}
+                    src={currentVideoUrl}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    autoPlay
+                    playsInline
+                    onEnded={handleVideoEnded}
+                  />
+                ) : (
+                  <>
+                    <div 
+                      className="absolute inset-0 bg-cover bg-center opacity-40"
+                      style={{ backgroundImage: `url(${currentLevel.bgImage})` }}
+                    />
+                    <div className="absolute inset-0 bg-black/40" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center">
+                        <p className="font-mono text-[12px] text-gray-300 mb-1">
+                          [ 演示模式 ]
+                        </p>
+                        <p className="font-mono text-[10px] text-gray-500">
+                          请在管理后台上传视频素材
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* 帧装饰 */}
+                <div className="absolute top-2.5 left-3 flex items-center gap-1.5">
+                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${gamePhase === 'playing' ? 'bg-red-500 animate-pulse' : 'bg-gray-500'}`} />
+                  <span className={`font-mono text-[9px] ${gamePhase === 'playing' ? 'text-red-500/70' : 'text-gray-500'}`}>
+                    {gamePhase === 'playing' ? 'REC' : 'PAUSED'}
+                  </span>
                 </div>
                 <div className="absolute top-2.5 right-3 font-mono text-[9px] text-gray-600">
                   {new Date().toLocaleTimeString('en-US', { hour12: false })}
@@ -291,109 +429,95 @@ export default function Game() {
                 <div className="absolute bottom-2.5 left-3 font-mono text-[9px] text-gray-600">
                   CAM-{currentLevel.id} | {currentLevel.name.toUpperCase()}
                 </div>
-                <div className="absolute bottom-2.5 right-3 font-mono text-[9px] text-gray-700">
-                  FEED #{Math.floor(Math.random() * 900 + 100)}
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* 选择阶段 */}
-          {gamePhase === 'choosing' && (
-            <motion.div
-              key="choosing"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="w-full max-w-xl"
-            >
-              {/* 视频区域 */}
-              <div className="relative aspect-video bg-black/60 border border-gray-800/80 rounded-sm overflow-hidden backdrop-blur-sm mb-6">
-                {/* 模拟视频静态帧 */}
-                <div 
-                  className="absolute inset-0 bg-cover bg-center opacity-40"
-                  style={{ backgroundImage: `url(${currentLevel.bgImage})` }}
-                />
-                <div className="absolute inset-0 bg-black/40" />
                 
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <p className="font-mono text-[12px] text-gray-300 mb-1">
-                      [ 视频播放区域 ]
-                    </p>
-                    <p className="font-mono text-[10px] text-gray-500">
-                      等待上传视频素材
-                    </p>
+                {/* 播放中提示 */}
+                {gamePhase === 'playing' && (
+                  <div className="absolute bottom-2.5 right-3">
+                    <span className="font-mono text-[9px] text-gray-500">
+                      点击跳过 →
+                    </span>
                   </div>
-                </div>
-
-                {/* 帧装饰 */}
-                <div className="absolute top-2.5 left-3 flex items-center gap-1.5">
-                  <span className="inline-block w-1.5 h-1.5 bg-gray-500 rounded-full" />
-                  <span className="font-mono text-[9px] text-gray-500">PAUSED</span>
-                </div>
-                <div className="absolute bottom-2.5 left-3 font-mono text-[9px] text-gray-600">
-                  CAM-{currentLevel.id} | {currentLevel.name.toUpperCase()}
-                </div>
-                
-                {/* 提示文字 */}
-                <div className="absolute bottom-2.5 right-3">
-                  <span className="font-mono text-[9px] text-[#E53935]/70 animate-pulse">
-                    请做出判断 ▼
-                  </span>
-                </div>
+                )}
+                {gamePhase === 'choosing' && (
+                  <div className="absolute bottom-2.5 right-3">
+                    <span className="font-mono text-[9px] text-[#E53935]/70 animate-pulse">
+                      请做出判断 ▼
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* 选择按钮组 */}
-              <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, duration: 0.4 }}
-                className="grid grid-cols-2 gap-3"
-              >
-                <button
-                  onClick={() => handleChoice(false)}
-                  className="group relative py-5 px-4 border border-green-500/20 rounded-sm
-                    hover:border-green-500/50 hover:bg-green-500/5 
-                    active:scale-[0.97] transition-all duration-200"
+              {/* 选择按钮组 - 仅在choosing阶段显示 */}
+              {gamePhase === 'choosing' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2, duration: 0.4 }}
+                  className="grid grid-cols-2 gap-3"
                 >
-                  <div className="flex flex-col items-center gap-2">
-                    <svg className="w-5 h-5 text-green-500/70 group-hover:text-green-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                    <span className="font-mono text-[12px] text-green-400/80 group-hover:text-green-300">
-                      未发现异常
-                    </span>
-                    <span className="font-mono text-[9px] text-gray-600">
-                      继续前进
-                    </span>
-                  </div>
-                </button>
+                  <button
+                    onClick={() => handleChoice(false)}
+                    className="group relative py-5 px-4 border border-green-500/20 rounded-sm
+                      hover:border-green-500/50 hover:bg-green-500/5 
+                      active:scale-[0.97] transition-all duration-200"
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <svg className="w-5 h-5 text-green-500/70 group-hover:text-green-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                      <span className="font-mono text-[12px] text-green-400/80 group-hover:text-green-300">
+                        未发现异常
+                      </span>
+                      <span className="font-mono text-[9px] text-gray-600">
+                        继续前进
+                      </span>
+                    </div>
+                  </button>
 
-                <button
-                  onClick={() => handleChoice(true)}
-                  className="group relative py-5 px-4 border border-[#E53935]/20 rounded-sm
-                    hover:border-[#E53935]/50 hover:bg-[#E53935]/5
-                    active:scale-[0.97] transition-all duration-200"
+                  <button
+                    onClick={() => handleChoice(true)}
+                    className="group relative py-5 px-4 border border-[#E53935]/20 rounded-sm
+                      hover:border-[#E53935]/50 hover:bg-[#E53935]/5 
+                      active:scale-[0.97] transition-all duration-200"
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <svg className="w-5 h-5 text-[#E53935]/70 group-hover:text-[#E53935] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                      </svg>
+                      <span className="font-mono text-[12px] text-[#E53935]/80 group-hover:text-[#E53935]">
+                        发现异常
+                      </span>
+                      <span className="font-mono text-[9px] text-gray-600">
+                        立即返回
+                      </span>
+                    </div>
+                  </button>
+                </motion.div>
+              )}
+
+              {/* 播放中的提示 */}
+              {gamePhase === 'playing' && !currentVideoUrl && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 1 }}
                 >
-                  <div className="flex flex-col items-center gap-2">
-                    <svg className="w-5 h-5 text-[#E53935]/70 group-hover:text-[#E53935] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                    </svg>
-                    <span className="font-mono text-[12px] text-[#E53935]/80 group-hover:text-[#E53935]">
-                      发现异常
-                    </span>
-                    <span className="font-mono text-[9px] text-gray-600">
-                      立即返回
-                    </span>
-                  </div>
-                </button>
-              </motion.div>
+                  <button
+                    onClick={handleSkipToChoose}
+                    className="w-full py-3 border border-gray-800 rounded-sm font-mono text-[11px] text-gray-500
+                      hover:border-gray-600 hover:text-gray-300 transition-all duration-200"
+                  >
+                    进入判断阶段 →
+                  </button>
+                </motion.div>
+              )}
 
               {/* 提示 */}
-              <p className="font-mono text-[9px] text-gray-700 text-center mt-4">
-                仔细观察画面，判断是否存在异常
-              </p>
+              {gamePhase === 'choosing' && (
+                <p className="font-mono text-[9px] text-gray-700 text-center mt-4">
+                  仔细观察画面，判断是否存在异常
+                </p>
+              )}
             </motion.div>
           )}
 
@@ -419,7 +543,7 @@ export default function Game() {
               </motion.div>
               <p className="font-mono text-sm text-green-400 mb-1">判断正确</p>
               <p className="font-mono text-[10px] text-gray-600">
-                {!isAnomaly ? '空间坐标已确认，正在推进...' : '异常已标记，重新扫描中...'}
+                {currentVideoIsNormal ? '空间坐标已确认，正在推进...' : '异常已标记，重新扫描中...'}
               </p>
             </motion.div>
           )}
