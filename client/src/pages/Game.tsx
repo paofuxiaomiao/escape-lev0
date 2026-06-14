@@ -1,16 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'wouter';
-import { trpc } from '@/lib/trpc';
+import TransitionEffect from '@/components/TransitionEffect';
+import ParticleSystem from '@/components/ParticleSystem';
 
 const LOGO_URL = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663760209689/WgMtkexYr4g2QwJyHJRwUN/lev0_logo-guPYvbB8GHrQsakkZZxeR9.webp';
 
 /**
  * 游戏主界面
  * 核心玩法：每轮随机展示一个视频（正常或异常），玩家判断后推进
- * 选对正常视频 -> 进入下一层级
- * 正确识别异常 -> 重新抽取本层级
- * 选错 -> 重新抽取本层级
  */
 
 interface LevelConfig {
@@ -67,7 +65,10 @@ export default function Game() {
   const [showGlitch, setShowGlitch] = useState(false);
   const [flickerOpacity, setFlickerOpacity] = useState(1);
   const [hasVideos, setHasVideos] = useState(true);
-  const flickerRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const [showTransition, setShowTransition] = useState(false);
+  const [transitionType, setTransitionType] = useState<'levelUp' | 'correct' | 'wrong' | 'gameStart' | 'gameEnd'>('levelUp');
+  const [ambientParticles, setAmbientParticles] = useState(true);
+  const flickerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const currentLevel = LEVELS[currentLevelIndex];
@@ -83,12 +84,15 @@ export default function Game() {
     return () => clearInterval(flickerRef.current);
   }, []);
 
-  // 入场动画
+  // 入场动画 - 带粒子转场
   useEffect(() => {
+    setTransitionType('gameStart');
+    setShowTransition(true);
     const timer = setTimeout(() => {
+      setShowTransition(false);
       setGamePhase('loading');
       loadNewRound();
-    }, 2500);
+    }, 3000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -100,9 +104,8 @@ export default function Game() {
       const data = result?.result?.data?.json;
 
       if (data && (data.normal || data.anomaly)) {
-        // 随机决定展示正常还是异常视频
         const showNormal = data.normal && data.anomaly
-          ? Math.random() > 0.4  // 40%概率展示正常视频
+          ? Math.random() > 0.4
           : !!data.normal;
 
         if (showNormal && data.normal) {
@@ -117,7 +120,6 @@ export default function Game() {
         }
         setHasVideos(true);
       } else {
-        // 没有视频，使用演示模式
         setHasVideos(false);
         setCurrentVideoIsNormal(Math.random() > 0.4);
         setCurrentVideoUrl(null);
@@ -127,7 +129,6 @@ export default function Game() {
         setGamePhase('playing');
       }, 1500);
     } catch (err) {
-      // 出错时使用演示模式
       setHasVideos(false);
       setCurrentVideoIsNormal(Math.random() > 0.4);
       setCurrentVideoUrl(null);
@@ -137,19 +138,17 @@ export default function Game() {
     }
   }, [currentLevel]);
 
-  // 视频播放结束后进入选择阶段
   const handleVideoEnded = useCallback(() => {
     setGamePhase('choosing');
   }, []);
 
-  // 手动进入选择阶段（点击视频跳过）
   const handleSkipToChoose = useCallback(() => {
     if (gamePhase === 'playing') {
       setGamePhase('choosing');
     }
   }, [gamePhase]);
 
-  // 玩家选择
+  // 玩家选择 - 带转场效果
   const handleChoice = useCallback((playerSaysAnomaly: boolean) => {
     const isAnomaly = !currentVideoIsNormal;
     const correct = playerSaysAnomaly === isAnomaly;
@@ -158,40 +157,62 @@ export default function Game() {
     if (correct) {
       setScore(prev => prev + 1);
       if (!isAnomaly) {
-        // 选对正常视频 -> 进入下一层
-        setGamePhase('correct');
-        setTimeout(() => advanceLevel(), 2000);
-      } else {
-        // 正确识别异常 -> 重新抽取
+        // 选对正常视频 -> 进入下一层（大转场）
+        setTransitionType('correct');
+        setShowTransition(true);
         setGamePhase('correct');
         setTimeout(() => {
+          setShowTransition(false);
+          advanceLevel();
+        }, 2500);
+      } else {
+        // 正确识别异常 -> 重新抽取（小转场）
+        setTransitionType('correct');
+        setShowTransition(true);
+        setGamePhase('correct');
+        setTimeout(() => {
+          setShowTransition(false);
           setGamePhase('loading');
           loadNewRound();
-        }, 1500);
+        }, 2000);
       }
     } else {
-      // 选错
+      // 选错 - 错误转场
+      setTransitionType('wrong');
+      setShowTransition(true);
       setShowGlitch(true);
       setGamePhase('wrong');
       setTimeout(() => {
         setShowGlitch(false);
+        setShowTransition(false);
         setGamePhase('loading');
         loadNewRound();
-      }, 2200);
+      }, 2500);
     }
   }, [currentVideoIsNormal, loadNewRound]);
 
   const advanceLevel = useCallback(() => {
     const nextIndex = currentLevelIndex + 1;
     if (nextIndex >= LEVELS.length) {
-      setGamePhase('complete');
+      setTransitionType('gameEnd');
+      setShowTransition(true);
+      setTimeout(() => {
+        setShowTransition(false);
+        setGamePhase('complete');
+      }, 3000);
       return;
     }
+    
+    // 层级转场
+    setTransitionType('levelUp');
+    setShowTransition(true);
     setGamePhase('transitioning');
+    
     setTimeout(() => {
+      setShowTransition(false);
       setCurrentLevelIndex(nextIndex);
       setGamePhase('loading');
-      // 加载下一层级视频
+      
       const nextLevel = LEVELS[nextIndex];
       fetch(`/api/trpc/game.getVideoPair?input=${encodeURIComponent(JSON.stringify({ json: { levelNumber: nextLevel.id } }))}`)
         .then(r => r.json())
@@ -231,6 +252,23 @@ export default function Game() {
       className="min-h-screen w-full bg-black relative overflow-hidden select-none"
       style={{ opacity: flickerOpacity, transition: 'opacity 0.04s' }}
     >
+      {/* 转场效果 */}
+      <TransitionEffect
+        active={showTransition}
+        type={transitionType}
+        levelNumber={transitionType === 'levelUp' ? LEVELS[currentLevelIndex + 1]?.id : currentLevel.id}
+        levelName={transitionType === 'levelUp' ? LEVELS[currentLevelIndex + 1]?.name : currentLevel.name}
+      />
+
+      {/* 环境粒子 - 持续浮动 */}
+      <ParticleSystem
+        active={ambientParticles && !showTransition}
+        mode="float"
+        count={15}
+        colors={['rgba(229,57,53,0.3)', 'rgba(0,229,255,0.2)', 'rgba(255,255,255,0.1)']}
+        duration={99999}
+      />
+
       {/* 背景层 */}
       <AnimatePresence mode="wait">
         <motion.div
@@ -272,20 +310,20 @@ export default function Game() {
         )}
       </AnimatePresence>
 
-      {/* 顶部HUD */}
+      {/* 顶部HUD - 升级字体 */}
       <div className="fixed top-0 left-0 right-0 z-40 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5">
-            <span className="font-mono text-[10px] text-gray-600 uppercase tracking-wider">Level</span>
-            <span className="font-mono text-xl text-white font-bold leading-none">{currentLevel.id}</span>
+            <span className="font-display text-[10px] text-gray-500 uppercase tracking-[0.2em]">Level</span>
+            <span className="font-impact text-3xl text-white leading-none">{currentLevel.id}</span>
           </div>
-          <div className="w-px h-4 bg-gray-700 mx-1" />
-          <span className="font-mono text-[10px] text-gray-500">{currentLevel.name}</span>
+          <div className="w-px h-5 bg-gray-700/50 mx-2" />
+          <span className="font-mono text-[10px] text-gray-500 tracking-wider">{currentLevel.name}</span>
         </div>
 
         <div className="flex items-center gap-4">
           <div className="font-mono text-[10px] text-gray-600">
-            <span className="text-green-500">{score}</span>
+            <span className="text-green-500 font-bold">{score}</span>
             <span className="text-gray-700"> / </span>
             <span>{totalAttempts}</span>
           </div>
@@ -294,10 +332,10 @@ export default function Game() {
             {LEVELS.map((_, idx) => (
               <div
                 key={idx}
-                className={`w-5 h-[3px] rounded-full transition-all duration-500 ${
-                  idx < currentLevelIndex ? 'bg-green-500' :
-                  idx === currentLevelIndex ? 'bg-[#E53935]' :
-                  'bg-gray-800'
+                className={`h-[3px] rounded-full transition-all duration-500 ${
+                  idx < currentLevelIndex ? 'w-6 bg-green-500' :
+                  idx === currentLevelIndex ? 'w-8 bg-[#E53935] pulse-glow' :
+                  'w-4 bg-gray-800'
                 }`}
               />
             ))}
@@ -314,28 +352,28 @@ export default function Game() {
               key="intro"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              exit={{ opacity: 0, filter: 'blur(10px)' }}
               className="text-center"
             >
               <motion.div
                 animate={{ opacity: [0.4, 1, 0.4] }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                <p className="font-mono text-[11px] text-gray-500 mb-6 tracking-wider">
+                <p className="font-mono text-[11px] text-gray-500 mb-6 tracking-[0.3em]">
                   正在连接后室网络...
                 </p>
               </motion.div>
-              <h2 className="font-mono text-4xl md:text-5xl text-white font-bold mb-3 tracking-tight">
-                LEVEL {currentLevel.id}
+              <h2 className="font-display font-black text-5xl md:text-7xl text-white mb-3 tracking-wider level-slam">
+                LEVEL <span className="text-[#E53935]">{currentLevel.id}</span>
               </h2>
-              <p className="font-mono text-sm text-[#E53935]">
+              <p className="font-mono text-sm text-[#E53935]/80 tracking-wide">
                 {currentLevel.description}
               </p>
-              <div className="mt-6 flex justify-center">
+              <div className="mt-8 flex justify-center">
                 <motion.div
                   animate={{ rotate: 360 }}
                   transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                  className="w-5 h-5 border border-gray-600 border-t-[#E53935] rounded-full"
+                  className="w-6 h-6 border-2 border-gray-700 border-t-[#E53935] rounded-full"
                 />
               </div>
             </motion.div>
@@ -358,9 +396,23 @@ export default function Game() {
                     transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
                     className="w-6 h-6 border-[1.5px] border-gray-700 border-t-[#E53935] rounded-full"
                   />
-                  <p className="font-mono text-[11px] text-gray-500">
+                  <p className="font-mono text-[11px] text-gray-500 tracking-wider">
                     {currentLevel.systemMsg}
                   </p>
+                </div>
+                {/* 数据流装饰 */}
+                <div className="absolute inset-0 overflow-hidden opacity-30">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="data-stream"
+                      style={{
+                        left: `${15 + i * 18}%`,
+                        animationDuration: `${1.5 + Math.random()}s`,
+                        animationDelay: `${i * 0.3}s`,
+                      }}
+                    />
+                  ))}
                 </div>
                 <div className="absolute top-2.5 left-3 flex items-center gap-1.5">
                   <span className="inline-block w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
@@ -405,7 +457,7 @@ export default function Game() {
                     <div className="absolute inset-0 bg-black/40" />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="text-center">
-                        <p className="font-mono text-[12px] text-gray-300 mb-1">
+                        <p className="font-display text-[12px] text-gray-300 mb-1 tracking-wider">
                           [ 演示模式 ]
                         </p>
                         <p className="font-mono text-[10px] text-gray-500">
@@ -430,7 +482,6 @@ export default function Game() {
                   CAM-{currentLevel.id} | {currentLevel.name.toUpperCase()}
                 </div>
                 
-                {/* 播放中提示 */}
                 {gamePhase === 'playing' && (
                   <div className="absolute bottom-2.5 right-3">
                     <span className="font-mono text-[9px] text-gray-500">
@@ -440,32 +491,32 @@ export default function Game() {
                 )}
                 {gamePhase === 'choosing' && (
                   <div className="absolute bottom-2.5 right-3">
-                    <span className="font-mono text-[9px] text-[#E53935]/70 animate-pulse">
+                    <span className="font-display text-[9px] text-[#E53935]/70 animate-pulse tracking-wider">
                       请做出判断 ▼
                     </span>
                   </div>
                 )}
               </div>
 
-              {/* 选择按钮组 - 仅在choosing阶段显示 */}
+              {/* 选择按钮组 */}
               {gamePhase === 'choosing' && (
                 <motion.div
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2, duration: 0.4 }}
+                  transition={{ delay: 0.2, duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
                   className="grid grid-cols-2 gap-3"
                 >
                   <button
                     onClick={() => handleChoice(false)}
                     className="group relative py-5 px-4 border border-green-500/20 rounded-sm
-                      hover:border-green-500/50 hover:bg-green-500/5 
+                      hover:border-green-500/50 hover:bg-green-500/5 hover:shadow-[0_0_30px_rgba(0,255,65,0.1)]
                       active:scale-[0.97] transition-all duration-200"
                   >
                     <div className="flex flex-col items-center gap-2">
-                      <svg className="w-5 h-5 text-green-500/70 group-hover:text-green-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <svg className="w-6 h-6 text-green-500/70 group-hover:text-green-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                       </svg>
-                      <span className="font-mono text-[12px] text-green-400/80 group-hover:text-green-300">
+                      <span className="font-display text-[11px] text-green-400/80 group-hover:text-green-300 tracking-wider">
                         未发现异常
                       </span>
                       <span className="font-mono text-[9px] text-gray-600">
@@ -477,14 +528,14 @@ export default function Game() {
                   <button
                     onClick={() => handleChoice(true)}
                     className="group relative py-5 px-4 border border-[#E53935]/20 rounded-sm
-                      hover:border-[#E53935]/50 hover:bg-[#E53935]/5 
+                      hover:border-[#E53935]/50 hover:bg-[#E53935]/5 hover:shadow-[0_0_30px_rgba(229,57,53,0.1)]
                       active:scale-[0.97] transition-all duration-200"
                   >
                     <div className="flex flex-col items-center gap-2">
-                      <svg className="w-5 h-5 text-[#E53935]/70 group-hover:text-[#E53935] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <svg className="w-6 h-6 text-[#E53935]/70 group-hover:text-[#E53935] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                       </svg>
-                      <span className="font-mono text-[12px] text-[#E53935]/80 group-hover:text-[#E53935]">
+                      <span className="font-display text-[11px] text-[#E53935]/80 group-hover:text-[#E53935] tracking-wider">
                         发现异常
                       </span>
                       <span className="font-mono text-[9px] text-gray-600">
@@ -495,7 +546,7 @@ export default function Game() {
                 </motion.div>
               )}
 
-              {/* 播放中的提示 */}
+              {/* 演示模式跳过按钮 */}
               {gamePhase === 'playing' && !currentVideoUrl && (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -504,7 +555,7 @@ export default function Game() {
                 >
                   <button
                     onClick={handleSkipToChoose}
-                    className="w-full py-3 border border-gray-800 rounded-sm font-mono text-[11px] text-gray-500
+                    className="w-full py-3 border border-gray-800 rounded-sm font-display text-[11px] text-gray-500 tracking-wider
                       hover:border-gray-600 hover:text-gray-300 transition-all duration-200"
                   >
                     进入判断阶段 →
@@ -512,9 +563,8 @@ export default function Game() {
                 </motion.div>
               )}
 
-              {/* 提示 */}
               {gamePhase === 'choosing' && (
-                <p className="font-mono text-[9px] text-gray-700 text-center mt-4">
+                <p className="font-mono text-[9px] text-gray-700 text-center mt-4 tracking-wider">
                   仔细观察画面，判断是否存在异常
                 </p>
               )}
@@ -535,13 +585,14 @@ export default function Game() {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring', stiffness: 250, damping: 20 }}
-                className="w-14 h-14 border border-green-500/50 rounded-full flex items-center justify-center mx-auto mb-4"
+                className="w-16 h-16 border-2 border-green-500/50 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ boxShadow: '0 0 30px rgba(0,255,65,0.2)' }}
               >
-                <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-7 h-7 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </motion.div>
-              <p className="font-mono text-sm text-green-400 mb-1">判断正确</p>
+              <p className="font-display text-lg text-green-400 mb-1 tracking-wider">判断正确</p>
               <p className="font-mono text-[10px] text-gray-600">
                 {currentVideoIsNormal ? '空间坐标已确认，正在推进...' : '异常已标记，重新扫描中...'}
               </p>
@@ -555,18 +606,19 @@ export default function Game() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="text-center"
+              className="text-center glitch-intense"
             >
               <motion.div
-                animate={{ x: [0, -4, 4, -2, 2, 0] }}
+                animate={{ x: [0, -6, 6, -3, 3, 0] }}
                 transition={{ duration: 0.4 }}
-                className="w-14 h-14 border border-[#E53935]/50 rounded-full flex items-center justify-center mx-auto mb-4"
+                className="w-16 h-16 border-2 border-[#E53935]/50 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ boxShadow: '0 0 30px rgba(229,57,53,0.3)' }}
               >
-                <svg className="w-6 h-6 text-[#E53935]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-7 h-7 text-[#E53935]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </motion.div>
-              <p className="font-mono text-sm text-[#E53935] mb-1">判断错误</p>
+              <p className="font-display text-lg text-[#E53935] mb-1 tracking-wider chromatic-text">判断错误</p>
               <p className="font-mono text-[10px] text-gray-600">
                 空间坐标偏移，重新加载...
               </p>
@@ -584,27 +636,30 @@ export default function Game() {
             >
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: [0.3, 1, 0.3], y: 0 }}
-                transition={{ opacity: { duration: 1.5, repeat: Infinity }, y: { duration: 0.5 } }}
-                className="space-y-3"
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="space-y-4"
               >
-                <p className="font-mono text-[10px] text-gray-500 tracking-widest uppercase">
+                <p className="font-display text-[10px] text-gray-500 tracking-[0.4em] uppercase">
                   空间坐标偏移中
                 </p>
-                <div className="flex justify-center gap-1">
-                  {[0, 1, 2].map(i => (
+                <div className="flex justify-center gap-1.5">
+                  {[0, 1, 2, 3, 4].map(i => (
                     <motion.div
                       key={i}
-                      animate={{ opacity: [0.2, 1, 0.2] }}
-                      transition={{ duration: 1, repeat: Infinity, delay: i * 0.3 }}
+                      animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.2, 0.8] }}
+                      transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
                       className="w-1.5 h-1.5 bg-[#E53935] rounded-full"
                     />
                   ))}
                 </div>
-                <h2 className="font-mono text-4xl text-white font-bold tracking-tight">
-                  LEVEL {LEVELS[currentLevelIndex + 1]?.id ?? '0'}
+                <h2 className="font-impact text-[120px] md:text-[180px] text-white/10 leading-none absolute inset-0 flex items-center justify-center pointer-events-none">
+                  {LEVELS[currentLevelIndex + 1]?.id ?? '0'}
                 </h2>
-                <p className="font-mono text-xs text-[#E53935]">
+                <h2 className="font-display font-black text-4xl md:text-6xl text-white tracking-wider">
+                  LEVEL <span className="text-[#E53935]">{LEVELS[currentLevelIndex + 1]?.id ?? '0'}</span>
+                </h2>
+                <p className="font-mono text-xs text-[#E53935]/70 tracking-wide">
                   {LEVELS[currentLevelIndex + 1]?.description ?? ''}
                 </p>
               </motion.div>
@@ -620,25 +675,37 @@ export default function Game() {
               transition={{ duration: 2 }}
               className="text-center px-4"
             >
+              {/* 巨大背景数字 */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
+                <motion.span
+                  initial={{ opacity: 0, scale: 3 }}
+                  animate={{ opacity: 0.03, scale: 1 }}
+                  transition={{ duration: 2 }}
+                  className="font-impact text-[300px] md:text-[500px] text-white leading-none"
+                >
+                  0
+                </motion.span>
+              </div>
+
               <motion.h1
                 initial={{ opacity: 0, y: -30, filter: 'blur(8px)' }}
                 animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                transition={{ delay: 0.3, duration: 1.2 }}
-                className="font-mono text-5xl md:text-7xl font-bold text-white mb-4 tracking-tight"
+                transition={{ delay: 0.3, duration: 1.2, ease: [0.23, 1, 0.32, 1] }}
+                className="font-display font-black text-5xl md:text-8xl text-white mb-4 tracking-[0.1em] chromatic-text relative z-10"
               >
                 ESCAPED
               </motion.h1>
               <motion.div
                 initial={{ width: 0 }}
-                animate={{ width: '6rem' }}
+                animate={{ width: '8rem' }}
                 transition={{ delay: 1, duration: 0.8 }}
-                className="h-[1px] bg-gradient-to-r from-transparent via-green-500 to-transparent mx-auto mb-6"
+                className="h-[2px] bg-gradient-to-r from-transparent via-green-500 to-transparent mx-auto mb-6"
               />
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 1.5 }}
-                className="font-mono text-sm text-gray-400 mb-1"
+                className="font-display text-sm text-gray-400 mb-1 tracking-wider relative z-10"
               >
                 你成功逃离了后室
               </motion.p>
@@ -646,7 +713,7 @@ export default function Game() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 2 }}
-                className="font-mono text-[11px] text-gray-600"
+                className="font-mono text-[11px] text-gray-600 relative z-10"
               >
                 得分: {score}/{totalAttempts} | 通过层级: {LEVELS.length}
               </motion.p>
@@ -654,7 +721,7 @@ export default function Game() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 3.5 }}
-                className="font-mono text-[10px] text-[#E53935]/70 mt-10"
+                className="font-mono text-[10px] text-[#E53935]/70 mt-10 relative z-10"
               >
                 ...还是说，这只是Level 0的幻觉？
               </motion.p>
@@ -663,8 +730,9 @@ export default function Game() {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 4.5 }}
                 onClick={() => navigate('/')}
-                className="mt-8 font-mono text-[11px] text-gray-500 border border-gray-800 px-4 py-2 rounded-sm
-                  hover:border-gray-600 hover:text-gray-300 transition-all duration-200"
+                className="mt-8 font-display text-[11px] text-gray-500 border border-gray-800 px-6 py-2.5 rounded-sm tracking-wider
+                  hover:border-[#E53935]/50 hover:text-[#E53935] hover:shadow-[0_0_20px_rgba(229,57,53,0.1)]
+                  transition-all duration-300 relative z-10"
               >
                 返回入口
               </motion.button>
@@ -687,7 +755,7 @@ export default function Game() {
                   : 'border-gray-800/50 bg-black/30'
               }`}
             >
-              <span className={`font-mono text-[8px] ${
+              <span className={`font-display text-[8px] tracking-wider ${
                 idx === currentLevelIndex ? 'text-[#E53935]' :
                 idx < currentLevelIndex ? 'text-green-500/70' : 'text-gray-700'
               }`}>

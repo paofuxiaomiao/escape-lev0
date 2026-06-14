@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
+import ParticleSystem from '@/components/ParticleSystem';
 
 /**
  * 欢迎页面 - 伪装成Cloudflare Turnstile真人验证界面
@@ -284,7 +285,7 @@ export default function Home() {
                 transition={{ delay: 0.3, duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
                 className="mb-8"
               >
-                <h1 className="font-mono font-bold text-5xl md:text-7xl tracking-[-0.05em] text-white leading-none">
+                <h1 className="font-display font-black text-5xl md:text-7xl tracking-[0.05em] text-white leading-none">
                   LEV<span className="text-[#E53935]">0</span>
                 </h1>
                 <motion.div
@@ -333,11 +334,11 @@ export default function Home() {
                 <button
                   onClick={handleEnterGame}
                   className="group relative inline-flex items-center gap-2 px-8 py-3.5 
-                    border border-[#E53935]/40 text-[#E53935] font-mono text-sm tracking-wide
-                    hover:bg-[#E53935]/8 hover:border-[#E53935]/80 hover:shadow-[0_0_20px_rgba(229,57,53,0.15)]
-                    active:scale-[0.97] transition-all duration-300"
+                    border border-[#E53935]/40 text-[#E53935] font-display text-sm tracking-[0.15em] uppercase
+                    hover:bg-[#E53935]/8 hover:border-[#E53935]/80 hover:shadow-[0_0_30px_rgba(229,57,53,0.2)]
+                    active:scale-[0.97] transition-all duration-300 pulse-glow"
                 >
-                  <span className="inline-block w-1.5 h-1.5 bg-[#E53935] rounded-full animate-pulse" />
+                  <span className="inline-block w-2 h-2 bg-[#E53935] rounded-full animate-pulse" />
                   <span>进入后室</span>
                 </button>
               </motion.div>
@@ -364,6 +365,17 @@ export default function Home() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* 环境粒子 - 揭示阶段 */}
+      {phase === 'revealed' && (
+        <ParticleSystem
+          active={true}
+          mode="float"
+          count={12}
+          colors={['rgba(229,57,53,0.2)', 'rgba(0,229,255,0.15)', 'rgba(255,255,255,0.08)']}
+          duration={99999}
+        />
+      )}
 
       {/* 角落装饰 */}
       <div className="fixed top-4 left-4 z-20 font-mono text-[9px] text-gray-700/50">

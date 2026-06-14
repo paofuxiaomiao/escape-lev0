@@ -29,6 +29,8 @@
   --color-ring: var(--ring);
   --font-mono: 'JetBrains Mono', monospace;
   --font-sans: 'Inter', sans-serif;
+  --font-display: 'Orbitron', sans-serif;
+  --font-impact: 'Bebas Neue', sans-serif;
 }
 
 :root {
@@ -52,6 +54,11 @@
   --border: oklch(0.2 0 0);
   --input: oklch(0.15 0 0);
   --ring: oklch(0.55 0.22 25);
+  /* Custom game colors */
+  --lev0-red: #E53935;
+  --lev0-green: #00FF41;
+  --lev0-cyan: #00E5FF;
+  --lev0-amber: #FFD600;
 }
 
 @layer base {
@@ -75,7 +82,10 @@
   }
 }
 
-/* Scanline overlay effect */
+/* ============================================
+   PARTICLE & TRANSITION KEYFRAMES
+   ============================================ */
+
 @keyframes scanline {
   0% { transform: translateY(-100%); }
   100% { transform: translateY(100vh); }
@@ -121,6 +131,100 @@
   15% { clip-path: inset(80% 0 5% 0); }
 }
 
+/* Particle float */
+@keyframes particleFloat {
+  0% { transform: translateY(0) translateX(0) scale(1); opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { transform: translateY(-100vh) translateX(var(--drift, 20px)) scale(0); opacity: 0; }
+}
+
+/* Particle burst - radial explosion */
+@keyframes particleBurst {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(0); opacity: 0; }
+}
+
+/* Shockwave ring */
+@keyframes shockwave {
+  0% { transform: scale(0); opacity: 1; border-width: 4px; }
+  50% { opacity: 0.6; border-width: 2px; }
+  100% { transform: scale(4); opacity: 0; border-width: 0.5px; }
+}
+
+/* Screen tear */
+@keyframes screenTear {
+  0% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+  10% { clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%); }
+  20% { clip-path: polygon(0 35%, 100% 35%, 100% 70%, 0 70%); }
+  30% { clip-path: polygon(0 70%, 100% 70%, 100% 100%, 0 100%); }
+  40% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+  100% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+}
+
+/* Chromatic aberration text */
+@keyframes chromaticShift {
+  0%, 100% { text-shadow: 0 0 0 transparent; }
+  25% { text-shadow: -3px 0 #E53935, 3px 0 #00E5FF; }
+  50% { text-shadow: 2px 0 #E53935, -2px 0 #00E5FF; }
+  75% { text-shadow: -1px 0 #E53935, 1px 0 #00E5FF; }
+}
+
+/* Intense glitch for transitions */
+@keyframes glitchIntense {
+  0% { transform: translate(0) skew(0deg); }
+  5% { transform: translate(-5px, 3px) skew(-2deg); }
+  10% { transform: translate(5px, -3px) skew(2deg); }
+  15% { transform: translate(-3px, -5px) skew(-1deg); }
+  20% { transform: translate(3px, 5px) skew(1deg); }
+  25% { transform: translate(0) skew(0deg); }
+  100% { transform: translate(0) skew(0deg); }
+}
+
+/* Digital dissolve */
+@keyframes digitalDissolve {
+  0% { filter: brightness(1) contrast(1); }
+  30% { filter: brightness(3) contrast(2); }
+  60% { filter: brightness(0.5) contrast(3) hue-rotate(180deg); }
+  100% { filter: brightness(1) contrast(1); }
+}
+
+/* Level number slam */
+@keyframes levelSlam {
+  0% { transform: scale(5) rotate(-5deg); opacity: 0; filter: blur(20px); }
+  40% { transform: scale(1.1) rotate(1deg); opacity: 1; filter: blur(0); }
+  60% { transform: scale(0.95) rotate(-0.5deg); }
+  80% { transform: scale(1.02) rotate(0.2deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* Pulse glow */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 5px var(--lev0-red), 0 0 10px transparent; }
+  50% { box-shadow: 0 0 20px var(--lev0-red), 0 0 40px rgba(229, 57, 53, 0.3), 0 0 60px rgba(229, 57, 53, 0.1); }
+}
+
+/* Data stream */
+@keyframes dataStream {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+/* Flicker fast */
+@keyframes flickerFast {
+  0%, 100% { opacity: 1; }
+  5% { opacity: 0.2; }
+  10% { opacity: 1; }
+  15% { opacity: 0.4; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  85% { opacity: 0.3; }
+  90% { opacity: 1; }
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
 .scanlines::after {
   content: '';
   position: fixed;
@@ -143,8 +247,20 @@
   animation: flicker 4s infinite;
 }
 
+.flicker-fast {
+  animation: flickerFast 2s infinite;
+}
+
 .glitch-text {
   animation: glitch 3s infinite;
+}
+
+.glitch-intense {
+  animation: glitchIntense 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.chromatic-text {
+  animation: chromaticShift 3s infinite;
 }
 
 .bg-breathe {
@@ -153,6 +269,64 @@
 
 .vhs-distort {
   animation: vhsDistort 0.3s linear;
+}
+
+.screen-tear {
+  animation: screenTear 0.4s linear;
+}
+
+.digital-dissolve {
+  animation: digitalDissolve 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.level-slam {
+  animation: levelSlam 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.pulse-glow {
+  animation: pulseGlow 2s infinite;
+}
+
+/* Font utility classes */
+.font-display {
+  font-family: 'Orbitron', sans-serif;
+}
+
+.font-impact {
+  font-family: 'Bebas Neue', sans-serif;
+}
+
+/* Particle container */
+.particle {
+  position: absolute;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.particle-float {
+  animation: particleFloat var(--duration, 3s) var(--delay, 0s) linear forwards;
+}
+
+.particle-burst {
+  animation: particleBurst var(--duration, 0.8s) var(--delay, 0s) cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+/* Shockwave ring */
+.shockwave {
+  position: absolute;
+  border-radius: 50%;
+  border: 3px solid var(--lev0-red);
+  animation: shockwave 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+/* Data stream overlay */
+.data-stream {
+  position: absolute;
+  width: 1px;
+  height: 200%;
+  background: linear-gradient(to bottom, transparent, var(--lev0-green), transparent);
+  animation: dataStream 2s linear infinite;
+  opacity: 0.3;
 }
 
 @layer components {
