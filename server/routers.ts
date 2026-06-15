@@ -171,6 +171,36 @@ export const appRouter = router({
 
   // 游戏API (公开)
   game: router({
+    // 获取指定层级的全部启用视频（游戏逐个展示用）
+    getLevelVideos: publicProcedure
+      .input(z.object({ levelNumber: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return { videos: [], levelName: "" };
+
+        const levelResult = await db.select().from(levels)
+          .where(eq(levels.levelNumber, input.levelNumber))
+          .limit(1);
+        if (levelResult.length === 0) return { videos: [], levelName: "" };
+        const level = levelResult[0];
+
+        const levelVideos = await db.select().from(videos)
+          .where(and(
+            eq(videos.levelId, level.id),
+            eq(videos.enabled, true),
+          ));
+
+        return {
+          levelName: level.name,
+          videos: levelVideos.map(video => ({
+            id: video.id,
+            videoUrl: video.videoUrl,
+            title: video.title,
+            isNormal: video.isNormal,
+            anomalyDescription: video.anomalyDescription,
+          })),
+        };
+      }),
     // 获取指定层级的视频对（一个正常+一个异常，随机选取）
     getVideoPair: publicProcedure
       .input(z.object({ levelNumber: z.number() }))
@@ -235,9 +265,24 @@ export const appRouter = router({
         levelNumber: z.number(),
         correct: z.boolean(),
         sessionId: z.string().optional(),
+        videoId: z.number().optional(),
+        playerSaysAnomaly: z.boolean().optional(),
+        score: z.number().int().min(0).optional(),
+        totalAttempts: z.number().int().min(0).optional(),
+        completed: z.boolean().optional(),
       }))
-      .mutation(async ({ input }) => {
-        // 简单记录，不强制要求登录
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (db) {
+          await db.insert(gameRecords).values({
+            userId: ctx.user?.id ?? null,
+            currentLevel: input.levelNumber,
+            totalAttempts: input.totalAttempts ?? 1,
+            correctCount: input.score ?? (input.correct ? 1 : 0),
+            completed: input.completed ?? false,
+          });
+        }
+
         return { success: true, correct: input.correct };
       }),
   }),

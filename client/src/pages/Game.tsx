@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'wouter';
 import TransitionEffect from '@/components/TransitionEffect';
 import ParticleSystem from '@/components/ParticleSystem';
+import { trpc } from '@/lib/trpc';
 
 const LOGO_URL = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663760209689/WgMtkexYr4g2QwJyHJRwUN/lev0_logo-guPYvbB8GHrQsakkZZxeR9.webp';
 
@@ -17,6 +18,14 @@ interface LevelConfig {
   description: string;
   bgImage: string;
   systemMsg: string;
+}
+
+interface RoundVideo {
+  id: number;
+  videoUrl: string;
+  title: string;
+  isNormal: boolean;
+  anomalyDescription: string | null;
 }
 
 const LEVELS: LevelConfig[] = [
@@ -60,8 +69,36 @@ const LEVELS: LevelConfig[] = [
 
 type GamePhase = 'intro' | 'loading' | 'playing' | 'choosing' | 'correct' | 'wrong' | 'transitioning' | 'complete';
 
+function getGameSessionId() {
+  const key = 'escape_lev0_session';
+  const existing = sessionStorage.getItem(key);
+  if (existing) return existing;
+
+  const id = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  sessionStorage.setItem(key, id);
+  return id;
+}
+
+function shuffleVideos(videos: RoundVideo[]) {
+  const shuffled = [...videos];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+async function fetchLevelVideos(levelNumber: number): Promise<RoundVideo[]> {
+  const input = encodeURIComponent(JSON.stringify({ json: { levelNumber } }));
+  const response = await fetch(`/api/trpc/game.getLevelVideos?input=${input}`);
+  const result = await response.json();
+  const data = result?.result?.data?.json as { videos?: RoundVideo[] } | undefined;
+  return data?.videos ?? [];
+}
+
 export default function Game() {
   const [, navigate] = useLocation();
+  const recordAttemptMutation = trpc.game.recordAttempt.useMutation();
   
   // Read selected level from localStorage (set by LevelMap)
   const getInitialLevelIndex = (): number => {
@@ -78,13 +115,15 @@ export default function Game() {
   
   const [currentLevelIndex, setCurrentLevelIndex] = useState(getInitialLevelIndex);
   const [gamePhase, setGamePhase] = useState<GamePhase>('intro');
-  const [currentVideoIsNormal, setCurrentVideoIsNormal] = useState(false);
+  const [sessionId] = useState(getGameSessionId);
+  const [videoQueue, setVideoQueue] = useState<RoundVideo[]>([]);
+  const [videoQueueIndex, setVideoQueueIndex] = useState(0);
+  const [currentVideo, setCurrentVideo] = useState<RoundVideo | null>(null);
   const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
   const [score, setScore] = useState(0);
   const [totalAttempts, setTotalAttempts] = useState(0);
   const [showGlitch, setShowGlitch] = useState(false);
   const [flickerOpacity, setFlickerOpacity] = useState(1);
-  const [hasVideos, setHasVideos] = useState(true);
   const [showTransition, setShowTransition] = useState(false);
   const [transitionType, setTransitionType] = useState<'levelUp' | 'correct' | 'wrong' | 'gameStart' | 'gameEnd'>('levelUp');
   const [ambientParticles, setAmbientParticles] = useState(true);
@@ -116,41 +155,35 @@ export default function Game() {
     return () => clearTimeout(timer);
   }, []);
 
-  // 每关必须展示异常视频，玩家需要发现异常才能过关
-  const loadNewRound = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/trpc/game.getVideoPair?input=${encodeURIComponent(JSON.stringify({ json: { levelNumber: currentLevel.id } }))}`);
-      const result = await response.json();
-      const data = result?.result?.data?.json;
+  const setActiveVideo = useCallback((video: RoundVideo | null) => {
+    setCurrentVideo(video);
+    setCurrentVideoUrl(video?.videoUrl ?? null);
+  }, []);
 
-      if (data && data.anomaly) {
-        // 始终展示异常视频
-        setCurrentVideoIsNormal(false);
-        setCurrentVideoUrl(data.anomaly.videoUrl);
-        setHasVideos(true);
-      } else if (data && data.normal) {
-        // 如果没有异常视频，回退到正常视频
-        setCurrentVideoIsNormal(true);
-        setCurrentVideoUrl(data.normal.videoUrl);
-        setHasVideos(true);
-      } else {
-        setHasVideos(false);
-        setCurrentVideoIsNormal(false);
-        setCurrentVideoUrl(null);
-      }
+  // 每关读取全部启用视频，随机洗牌后逐个展示
+  const loadLevelQueue = useCallback(async (level: LevelConfig) => {
+    try {
+      const videos = shuffleVideos(await fetchLevelVideos(level.id));
+      setVideoQueue(videos);
+      setVideoQueueIndex(0);
+      setActiveVideo(videos[0] ?? null);
 
       setTimeout(() => {
         setGamePhase('playing');
       }, 1500);
     } catch (err) {
-      setHasVideos(false);
-      setCurrentVideoIsNormal(false);
-      setCurrentVideoUrl(null);
+      setVideoQueue([]);
+      setVideoQueueIndex(0);
+      setActiveVideo(null);
       setTimeout(() => {
         setGamePhase('playing');
       }, 1500);
     }
-  }, [currentLevel]);
+  }, [setActiveVideo]);
+
+  const loadNewRound = useCallback(async () => {
+    await loadLevelQueue(currentLevel);
+  }, [currentLevel, loadLevelQueue]);
 
   const handleVideoEnded = useCallback(() => {
     setGamePhase('choosing');
@@ -161,35 +194,6 @@ export default function Game() {
       setGamePhase('choosing');
     }
   }, [gamePhase]);
-
-  // 玩家选择 - 只有“发现异常”才能过关
-  const handleChoice = useCallback((playerSaysAnomaly: boolean) => {
-    setTotalAttempts(prev => prev + 1);
-
-    if (playerSaysAnomaly) {
-      // 玩家选择“发现异常” -> 正确，进入下一关
-      setScore(prev => prev + 1);
-      setTransitionType('correct');
-      setShowTransition(true);
-      setGamePhase('correct');
-      setTimeout(() => {
-        setShowTransition(false);
-        advanceLevel();
-      }, 2500);
-    } else {
-      // 玩家选择“未发现异常” -> 错误，重新播放当前关卡视频
-      setTransitionType('wrong');
-      setShowTransition(true);
-      setShowGlitch(true);
-      setGamePhase('wrong');
-      setTimeout(() => {
-        setShowGlitch(false);
-        setShowTransition(false);
-        setGamePhase('loading');
-        loadNewRound();
-      }, 2500);
-    }
-  }, [loadNewRound]);
 
   const advanceLevel = useCallback(() => {
     const nextIndex = currentLevelIndex + 1;
@@ -218,36 +222,69 @@ export default function Game() {
       setShowTransition(false);
       setCurrentLevelIndex(nextIndex);
       setGamePhase('loading');
-      
-      const nextLevel = LEVELS[nextIndex];
-      fetch(`/api/trpc/game.getVideoPair?input=${encodeURIComponent(JSON.stringify({ json: { levelNumber: nextLevel.id } }))}`)
-        .then(r => r.json())
-        .then(result => {
-          const data = result?.result?.data?.json;
-          if (data && data.anomaly) {
-            // 始终展示异常视频
-            setCurrentVideoIsNormal(false);
-            setCurrentVideoUrl(data.anomaly.videoUrl);
-            setHasVideos(true);
-          } else if (data && data.normal) {
-            setCurrentVideoIsNormal(true);
-            setCurrentVideoUrl(data.normal.videoUrl);
-            setHasVideos(true);
-          } else {
-            setHasVideos(false);
-            setCurrentVideoIsNormal(false);
-            setCurrentVideoUrl(null);
-          }
-          setTimeout(() => setGamePhase('playing'), 1500);
-        })
-        .catch(() => {
-          setHasVideos(false);
-          setCurrentVideoIsNormal(false);
-          setCurrentVideoUrl(null);
-          setTimeout(() => setGamePhase('playing'), 1500);
-        });
+      loadLevelQueue(nextLevel);
     }, 2800);
-  }, [currentLevelIndex]);
+  }, [currentLevelIndex, loadLevelQueue]);
+
+  // 玩家选择后记录分数，并继续展示本关剩余视频
+  const handleChoice = useCallback((playerSaysAnomaly: boolean) => {
+    const correct = currentVideo
+      ? playerSaysAnomaly === !currentVideo.isNormal
+      : playerSaysAnomaly;
+    const nextScore = score + (correct ? 1 : 0);
+    const nextTotalAttempts = totalAttempts + 1;
+    const hasMoreVideosInLevel = currentVideo ? videoQueueIndex < videoQueue.length - 1 : false;
+    const completed = !hasMoreVideosInLevel && currentLevelIndex + 1 >= LEVELS.length;
+
+    setTotalAttempts(nextTotalAttempts);
+    if (correct) {
+      setScore(nextScore);
+    }
+
+    recordAttemptMutation.mutate({
+      levelNumber: currentLevel.id,
+      videoId: currentVideo?.id,
+      playerSaysAnomaly,
+      correct,
+      sessionId,
+      score: nextScore,
+      totalAttempts: nextTotalAttempts,
+      completed,
+    });
+
+    setTransitionType(correct ? 'correct' : 'wrong');
+    setShowTransition(true);
+    setShowGlitch(!correct);
+    setGamePhase(correct ? 'correct' : 'wrong');
+
+    setTimeout(() => {
+      setShowGlitch(false);
+      setShowTransition(false);
+
+      if (hasMoreVideosInLevel) {
+        const nextVideoIndex = videoQueueIndex + 1;
+        setVideoQueueIndex(nextVideoIndex);
+        setActiveVideo(videoQueue[nextVideoIndex] ?? null);
+        setGamePhase('loading');
+        setTimeout(() => setGamePhase('playing'), 900);
+        return;
+      }
+
+      advanceLevel();
+    }, 2500);
+  }, [
+    advanceLevel,
+    currentLevel.id,
+    currentLevelIndex,
+    currentVideo,
+    recordAttemptMutation,
+    score,
+    sessionId,
+    setActiveVideo,
+    totalAttempts,
+    videoQueue,
+    videoQueueIndex,
+  ]);
 
   return (
     <div 
@@ -342,6 +379,14 @@ export default function Game() {
             <span className="text-green-500 font-bold text-glow-green">{score}</span>
             <span className="text-gray-700"> / </span>
             <span>{totalAttempts}</span>
+            {videoQueue.length > 0 && (
+              <>
+                <span className="text-gray-800 mx-2">|</span>
+                <span className="text-gray-500">
+                  VIDEO {videoQueueIndex + 1}/{videoQueue.length}
+                </span>
+              </>
+            )}
           </div>
           {/* 层级进度条 */}
           <div className="flex items-center gap-1">
@@ -614,9 +659,11 @@ export default function Game() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </motion.div>
-              <p className="font-display text-lg text-green-400 mb-1 tracking-wider">异常已标记</p>
+              <p className="font-display text-lg text-green-400 mb-1 tracking-wider">
+                {currentVideo?.isNormal ? '确认无异常' : '异常已标记'}
+              </p>
               <p className="font-tech text-[10px] text-gray-600">
-                空间坐标已确认，正在推进下一区域...
+                判断已记录，正在载入下一个片段...
               </p>
             </motion.div>
           )}
@@ -640,9 +687,11 @@ export default function Game() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </motion.div>
-              <p className="font-display text-lg text-[#E53935] mb-1 tracking-wider chromatic-text">未发现异常</p>
+              <p className="font-display text-lg text-[#E53935] mb-1 tracking-wider chromatic-text">
+                {currentVideo?.isNormal ? '误报异常' : '未发现异常'}
+              </p>
               <p className="font-tech text-[10px] text-gray-600">
-                这里有东西不对劲，再仔细看看...
+                判断已记录，继续进入下一个片段...
               </p>
             </motion.div>
           )}

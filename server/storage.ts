@@ -1,8 +1,15 @@
-// Preconfigured storage helpers for Manus WebDev templates
-// Uploads via Forge Server presigned URL to S3 (PUT direct).
-// Downloads return /manus-storage/{key} paths served via 307 redirect.
-
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { ENV } from "./_core/env";
+
+type OssConfig = {
+  region: string;
+  endpoint: string;
+  bucket: string;
+  accessKeyId: string;
+  accessKeySecret: string;
+};
+
+let ossClient: S3Client | null = null;
 
 function getForgeConfig() {
   const forgeUrl = ENV.forgeApiUrl;
@@ -17,6 +24,49 @@ function getForgeConfig() {
   return { forgeUrl: forgeUrl.replace(/\/+$/, ""), forgeKey };
 }
 
+function getOssConfig(): OssConfig | null {
+  const {
+    ossRegion,
+    ossEndpoint,
+    ossBucket,
+    ossAccessKeyId,
+    ossAccessKeySecret,
+  } = ENV;
+
+  if (
+    !ossRegion ||
+    !ossEndpoint ||
+    !ossBucket ||
+    !ossAccessKeyId ||
+    !ossAccessKeySecret
+  ) {
+    return null;
+  }
+
+  return {
+    region: ossRegion,
+    endpoint: ossEndpoint,
+    bucket: ossBucket,
+    accessKeyId: ossAccessKeyId,
+    accessKeySecret: ossAccessKeySecret,
+  };
+}
+
+function getOssClient(config: OssConfig): S3Client {
+  if (!ossClient) {
+    ossClient = new S3Client({
+      region: config.region,
+      endpoint: config.endpoint,
+      forcePathStyle: false,
+      credentials: {
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.accessKeySecret,
+      },
+    });
+  }
+  return ossClient;
+}
+
 function normalizeKey(relKey: string): string {
   return relKey.replace(/^\/+/, "");
 }
@@ -28,15 +78,38 @@ function appendHashSuffix(relKey: string): string {
   return `${relKey.slice(0, lastDot)}_${hash}${relKey.slice(lastDot)}`;
 }
 
-export async function storagePut(
-  relKey: string,
+function buildStorageUrl(key: string): string {
+  return `/manus-storage/${key}`;
+}
+
+async function storagePutToOss(
+  key: string,
   data: Buffer | Uint8Array | string,
-  contentType = "application/octet-stream",
+  contentType: string,
+): Promise<{ key: string; url: string }> {
+  const config = getOssConfig();
+  if (!config) throw new Error("OSS storage is not configured");
+
+  const body = typeof data === "string" ? Buffer.from(data) : data;
+  await getOssClient(config).send(
+    new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    }),
+  );
+
+  return { key, url: buildStorageUrl(key) };
+}
+
+async function storagePutToForge(
+  key: string,
+  data: Buffer | Uint8Array | string,
+  contentType: string,
 ): Promise<{ key: string; url: string }> {
   const { forgeUrl, forgeKey } = getForgeConfig();
-  const key = appendHashSuffix(normalizeKey(relKey));
 
-  // 1. Get presigned PUT URL from Forge
   const presignUrl = new URL("v1/storage/presign/put", forgeUrl + "/");
   presignUrl.searchParams.set("path", key);
 
@@ -52,7 +125,6 @@ export async function storagePut(
   const { url: s3Url } = (await presignResp.json()) as { url: string };
   if (!s3Url) throw new Error("Forge returned empty presign URL");
 
-  // 2. PUT file directly to S3
   const blob =
     typeof data === "string"
       ? new Blob([data], { type: contentType })
@@ -68,15 +140,31 @@ export async function storagePut(
     throw new Error(`Storage upload to S3 failed (${uploadResp.status})`);
   }
 
-  return { key, url: `/manus-storage/${key}` };
+  return { key, url: buildStorageUrl(key) };
+}
+
+export async function storagePut(
+  relKey: string,
+  data: Buffer | Uint8Array | string,
+  contentType = "application/octet-stream",
+): Promise<{ key: string; url: string }> {
+  const key = appendHashSuffix(normalizeKey(relKey));
+  if (getOssConfig()) {
+    return storagePutToOss(key, data, contentType);
+  }
+  return storagePutToForge(key, data, contentType);
 }
 
 export async function storageGet(relKey: string): Promise<{ key: string; url: string }> {
   const key = normalizeKey(relKey);
-  return { key, url: `/manus-storage/${key}` };
+  return { key, url: buildStorageUrl(key) };
 }
 
 export async function storageGetSignedUrl(relKey: string): Promise<string> {
+  if (getOssConfig()) {
+    return buildStorageUrl(relKey);
+  }
+
   const { forgeUrl, forgeKey } = getForgeConfig();
   const key = normalizeKey(relKey);
 
@@ -94,4 +182,41 @@ export async function storageGetSignedUrl(relKey: string): Promise<string> {
 
   const { url } = (await resp.json()) as { url: string };
   return url;
+}
+
+export async function storageRead(relKey: string): Promise<{
+  key: string;
+  body: unknown;
+  contentType?: string;
+  contentLength?: number;
+}> {
+  const key = normalizeKey(relKey);
+  const config = getOssConfig();
+  if (!config) {
+    const url = await storageGetSignedUrl(key);
+    const response = await fetch(url);
+    if (!response.ok || !response.body) {
+      throw new Error(`Storage read failed (${response.status} ${response.statusText})`);
+    }
+    return {
+      key,
+      body: response.body,
+      contentType: response.headers.get("content-type") || "application/octet-stream",
+      contentLength: Number(response.headers.get("content-length")) || undefined,
+    };
+  }
+
+  const object = await getOssClient(config).send(
+    new GetObjectCommand({
+      Bucket: config.bucket,
+      Key: key,
+    }),
+  );
+
+  return {
+    key,
+    body: object.Body,
+    contentType: object.ContentType || "application/octet-stream",
+    contentLength: object.ContentLength,
+  };
 }
