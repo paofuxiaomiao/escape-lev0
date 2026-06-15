@@ -4,11 +4,14 @@ import { useLocation } from 'wouter';
 import TransitionEffect from '@/components/TransitionEffect';
 import ParticleSystem from '@/components/ParticleSystem';
 import { trpc } from '@/lib/trpc';
+import { apiUrl, storageUrl, withBasePath } from '@/lib/basePath';
 
 const LOGO_URL = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663760209689/WgMtkexYr4g2QwJyHJRwUN/lev0_logo-guPYvbB8GHrQsakkZZxeR9.webp';
 const ENDING_VIDEO_URL =
-  import.meta.env.VITE_ENDING_VIDEO_URL ||
-  '/manus-storage/ending/LEV0_backrooms_bilingual_61410_source_subs_bright.mp4';
+  withBasePath(
+    import.meta.env.VITE_ENDING_VIDEO_URL ||
+      '/manus-storage/ending/LEV0_backrooms_bilingual_61410_source_subs_bright.mp4',
+  );
 
 /**
  * 游戏主界面
@@ -35,37 +38,37 @@ const LEVELS: LevelConfig[] = [
   { 
     id: 5, name: '进门', 
     description: '检测到入口协议...', 
-    bgImage: '/manus-storage/bg_welcome_2345c7fc.png',
+    bgImage: storageUrl('/manus-storage/bg_welcome_2345c7fc.png'),
     systemMsg: '正在扫描入口区域...'
   },
   { 
     id: 4, name: '电梯', 
     description: '垂直传输通道激活...', 
-    bgImage: '/manus-storage/bg_elevator_371b48ce.png',
+    bgImage: storageUrl('/manus-storage/bg_elevator_371b48ce.png'),
     systemMsg: '电梯系统接入中...'
   },
   { 
     id: 3, name: '进场签到', 
     description: '身份注册系统启动...', 
-    bgImage: '/manus-storage/bg_reception_c9b3d319.png',
+    bgImage: storageUrl('/manus-storage/bg_reception_c9b3d319.png'),
     systemMsg: '签到终端连接中...'
   },
   { 
     id: 2, name: '涂鸦', 
     description: '墙面信息解码中...', 
-    bgImage: '/manus-storage/bg_graffiti_356c1a20.png',
+    bgImage: storageUrl('/manus-storage/bg_graffiti_356c1a20.png'),
     systemMsg: '解析墙面数据...'
   },
   { 
     id: 1, name: '室内开发', 
     description: '核心区域已解锁...', 
-    bgImage: '/manus-storage/bg_office_26395507.png',
+    bgImage: storageUrl('/manus-storage/bg_office_26395507.png'),
     systemMsg: '进入核心工作区...'
   },
   { 
     id: 0, name: '最终挑战', 
     description: 'LEV0核心区域...最终审判...', 
-    bgImage: '/manus-storage/bg_welcome_2345c7fc.png',
+    bgImage: storageUrl('/manus-storage/bg_welcome_2345c7fc.png'),
     systemMsg: '正在接入LEV0核心...'
   },
 ];
@@ -93,7 +96,7 @@ function shuffleVideos(videos: RoundVideo[]) {
 
 async function fetchLevelVideos(levelNumber: number): Promise<RoundVideo[]> {
   const input = encodeURIComponent(JSON.stringify({ json: { levelNumber } }));
-  const response = await fetch(`/api/trpc/game.getLevelVideos?input=${input}`);
+  const response = await fetch(apiUrl(`/api/trpc/game.getLevelVideos?input=${input}`));
   const result = await response.json();
   const data = result?.result?.data?.json as { videos?: RoundVideo[] } | undefined;
   return data?.videos ?? [];
@@ -161,7 +164,7 @@ export default function Game() {
 
   const setActiveVideo = useCallback((video: RoundVideo | null) => {
     setCurrentVideo(video);
-    setCurrentVideoUrl(video?.videoUrl ?? null);
+    setCurrentVideoUrl(video ? withBasePath(video.videoUrl) : null);
   }, []);
 
   // 每关读取全部启用视频，随机洗牌后逐个展示
@@ -788,7 +791,7 @@ export default function Game() {
                     className="relative w-full h-full flex items-center justify-center p-4"
                   >
                     <img
-                      src="/manus-storage/ending_poster_d88e314f.png"
+                      src={storageUrl('/manus-storage/ending_poster_d88e314f.png')}
                       alt="欢迎来到 LEVEL 0"
                       className="max-w-full max-h-[85vh] object-contain rounded-sm shadow-[0_0_60px_rgba(180,150,50,0.15)]"
                     />

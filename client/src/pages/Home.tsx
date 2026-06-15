@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import ParticleSystem from '@/components/ParticleSystem';
+import { storageUrl } from '@/lib/basePath';
 
 /**
  * 欢迎页面 - 伪装成Cloudflare Turnstile真人验证界面
@@ -94,7 +95,7 @@ export default function Home() {
       <div 
         className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
         style={{ 
-          backgroundImage: `url(/manus-storage/bg_welcome_2345c7fc.png)`,
+          backgroundImage: `url(${storageUrl('/manus-storage/bg_welcome_2345c7fc.png')})`,
           opacity: phase === 'revealed' ? 0.25 : 0.12,
           transform: 'scale(1.05)',
           animation: 'breathe 12s ease-in-out infinite',

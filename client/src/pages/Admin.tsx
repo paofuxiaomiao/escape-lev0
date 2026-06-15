@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
+import { storageUrl, withBasePath } from "@/lib/basePath";
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
@@ -64,7 +65,7 @@ export default function Admin() {
             <span className="font-mono text-[10px] text-gray-600">
               {user?.name || user?.email || 'Admin'}
             </span>
-            <a href="/" className="font-mono text-[10px] text-gray-500 hover:text-gray-300 transition-colors">
+            <a href={withBasePath('/')} className="font-mono text-[10px] text-gray-500 hover:text-gray-300 transition-colors">
               ← 返回游戏
             </a>
           </div>
@@ -397,7 +398,7 @@ function VideoManager() {
             {/* 视频预览 */}
             <div className="w-24 h-14 bg-gray-800 rounded overflow-hidden flex-shrink-0">
               <video
-                src={video.videoUrl}
+                src={storageUrl(video.videoUrl)}
                 className="w-full h-full object-cover"
                 muted
                 preload="metadata"

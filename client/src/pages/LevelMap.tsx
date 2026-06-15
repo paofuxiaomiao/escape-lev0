@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
+import { storageUrl } from '@/lib/basePath';
 
 /**
  * 路程地图页面 - 一面破旧墙壁，上面有几个洞
@@ -33,7 +34,7 @@ const LEVELS: LevelNode[] = [
     key: 'door',
     name: '进门',
     subtitle: 'ENTRY',
-    image: '/manus-storage/lev1_indoor_5391e6c6.png',
+    image: storageUrl('/manus-storage/lev1_indoor_5391e6c6.png'),
     hole: {
       left: 4,
       top: 12,
@@ -48,7 +49,7 @@ const LEVELS: LevelNode[] = [
     key: 'elevator',
     name: '电梯',
     subtitle: 'ELEVATOR',
-    image: '/manus-storage/lev4_elevator_089a80c3.webp',
+    image: storageUrl('/manus-storage/lev4_elevator_089a80c3.webp'),
     hole: {
       left: 28,
       top: 8,
@@ -63,7 +64,7 @@ const LEVELS: LevelNode[] = [
     key: 'checkin',
     name: '签到',
     subtitle: 'CHECK IN',
-    image: '/manus-storage/lev3_checkin_25badea1.png',
+    image: storageUrl('/manus-storage/lev3_checkin_25badea1.png'),
     hole: {
       left: 48,
       top: 15,
@@ -78,7 +79,7 @@ const LEVELS: LevelNode[] = [
     key: 'graffiti',
     name: '涂鸦',
     subtitle: 'GRAFFITI',
-    image: '/manus-storage/lev2_graffiti_new_6ee0a04f.png',
+    image: storageUrl('/manus-storage/lev2_graffiti_new_6ee0a04f.png'),
     hole: {
       left: 10,
       top: 54,
@@ -93,7 +94,7 @@ const LEVELS: LevelNode[] = [
     key: 'indoor',
     name: '室内开发',
     subtitle: 'DEV ROOM',
-    image: '/manus-storage/lev5_door_3551cd73.png',
+    image: storageUrl('/manus-storage/lev5_door_3551cd73.png'),
     hole: {
       left: 40,
       top: 52,
@@ -108,7 +109,7 @@ const LEVELS: LevelNode[] = [
     key: 'final',
     name: '最终挑战',
     subtitle: 'LEV0',
-    image: '/manus-storage/bg_welcome_2345c7fc.png',
+    image: storageUrl('/manus-storage/bg_welcome_2345c7fc.png'),
     hole: {
       left: 66,
       top: 42,

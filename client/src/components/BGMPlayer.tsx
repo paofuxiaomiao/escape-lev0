@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { storageUrl } from '@/lib/basePath';
 
-const BGM_URL = '/manus-storage/The_False_Wall_09c297b9.mp3';
+const BGM_URL = storageUrl('/manus-storage/The_False_Wall_09c297b9.mp3');
 
 /**
  * 全局BGM播放器 - 后室风格

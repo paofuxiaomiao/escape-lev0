@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Router as WouterRouter, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
@@ -9,8 +9,9 @@ import Game from "./pages/Game";
 import Admin from "./pages/Admin";
 import LevelMap from "./pages/LevelMap";
 import BGMPlayer from "./components/BGMPlayer";
+import { APP_BASE_PATH } from "./lib/basePath";
 
-function Router() {
+function AppRoutes() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
@@ -30,7 +31,9 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <BGMPlayer />
-          <Router />
+          <WouterRouter base={APP_BASE_PATH}>
+            <AppRoutes />
+          </WouterRouter>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
