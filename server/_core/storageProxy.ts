@@ -23,6 +23,11 @@ function pipeStorageBody(body: unknown, res: express.Response): void {
   Readable.from(body as Iterable<Uint8Array>).pipe(res);
 }
 
+function getSafeRange(rangeHeader: string | undefined): string | undefined {
+  if (!rangeHeader) return undefined;
+  return /^bytes=\d+-\d*$/.test(rangeHeader) ? rangeHeader : undefined;
+}
+
 export function registerStorageProxy(app: Express) {
   app.get("/manus-storage/*", async (req, res) => {
     const key = (req.params as Record<string, string>)[0];
@@ -32,12 +37,17 @@ export function registerStorageProxy(app: Express) {
     }
 
     try {
-      const file = await storageRead(key);
+      const file = await storageRead(key, getSafeRange(req.headers.range));
       res.setHeader(
         "Content-Type",
         file.contentType || "application/octet-stream",
       );
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      res.setHeader("Accept-Ranges", "bytes");
+      if (file.contentRange) {
+        res.status(206);
+        res.setHeader("Content-Range", file.contentRange);
+      }
       if (file.contentLength) {
         res.setHeader("Content-Length", String(file.contentLength));
       }

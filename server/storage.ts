@@ -184,17 +184,20 @@ export async function storageGetSignedUrl(relKey: string): Promise<string> {
   return url;
 }
 
-export async function storageRead(relKey: string): Promise<{
+export async function storageRead(relKey: string, range?: string): Promise<{
   key: string;
   body: unknown;
   contentType?: string;
   contentLength?: number;
+  contentRange?: string;
 }> {
   const key = normalizeKey(relKey);
   const config = getOssConfig();
   if (!config) {
     const url = await storageGetSignedUrl(key);
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: range ? { Range: range } : undefined,
+    });
     if (!response.ok || !response.body) {
       throw new Error(`Storage read failed (${response.status} ${response.statusText})`);
     }
@@ -203,6 +206,7 @@ export async function storageRead(relKey: string): Promise<{
       body: response.body,
       contentType: response.headers.get("content-type") || "application/octet-stream",
       contentLength: Number(response.headers.get("content-length")) || undefined,
+      contentRange: response.headers.get("content-range") || undefined,
     };
   }
 
@@ -210,6 +214,7 @@ export async function storageRead(relKey: string): Promise<{
     new GetObjectCommand({
       Bucket: config.bucket,
       Key: key,
+      Range: range,
     }),
   );
 
@@ -218,5 +223,6 @@ export async function storageRead(relKey: string): Promise<{
     body: object.Body,
     contentType: object.ContentType || "application/octet-stream",
     contentLength: object.ContentLength,
+    contentRange: object.ContentRange,
   };
 }

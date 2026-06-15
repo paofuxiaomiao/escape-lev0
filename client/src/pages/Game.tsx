@@ -6,6 +6,9 @@ import ParticleSystem from '@/components/ParticleSystem';
 import { trpc } from '@/lib/trpc';
 
 const LOGO_URL = 'https://d2xsxph8kpxj0f.cloudfront.net/310519663760209689/WgMtkexYr4g2QwJyHJRwUN/lev0_logo-guPYvbB8GHrQsakkZZxeR9.webp';
+const ENDING_VIDEO_URL =
+  import.meta.env.VITE_ENDING_VIDEO_URL ||
+  '/manus-storage/ending/LEV0_backrooms_bilingual_61410_source_subs_bright.mp4';
 
 /**
  * 游戏主界面
@@ -120,6 +123,7 @@ export default function Game() {
   const [videoQueueIndex, setVideoQueueIndex] = useState(0);
   const [currentVideo, setCurrentVideo] = useState<RoundVideo | null>(null);
   const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
+  const [endingVideoComplete, setEndingVideoComplete] = useState(false);
   const [score, setScore] = useState(0);
   const [totalAttempts, setTotalAttempts] = useState(0);
   const [showGlitch, setShowGlitch] = useState(false);
@@ -202,6 +206,7 @@ export default function Game() {
       localStorage.setItem('escape_lev0_progress', JSON.stringify({ level: -1 }));
       setTransitionType('gameEnd');
       setShowTransition(true);
+      setEndingVideoComplete(false);
       setTimeout(() => {
         setShowTransition(false);
         setGamePhase('complete');
@@ -737,7 +742,7 @@ export default function Game() {
             </motion.div>
           )}
 
-          {/* 通关 - 海报展示 */}
+          {/* 通关 - 片尾视频后展示海报 */}
           {gamePhase === 'complete' && (
             <motion.div
               key="complete"
@@ -746,49 +751,80 @@ export default function Game() {
               transition={{ duration: 1.5 }}
               className="fixed inset-0 flex items-center justify-center bg-black z-30"
             >
-              {/* 海报图片 */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9, filter: 'blur(10px)' }}
-                animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-                transition={{ delay: 0.5, duration: 1.5, ease: [0.23, 1, 0.32, 1] }}
-                className="relative w-full h-full flex items-center justify-center p-4"
-              >
-                <img
-                  src="/manus-storage/ending_poster_d88e314f.png"
-                  alt="欢迎来到 LEVEL 0"
-                  className="max-w-full max-h-[85vh] object-contain rounded-sm shadow-[0_0_60px_rgba(180,150,50,0.15)]"
-                />
-              </motion.div>
+              {!endingVideoComplete && ENDING_VIDEO_URL ? (
+                <motion.div
+                  key="ending-video"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ delay: 0.3, duration: 1 }}
+                  className="relative w-full h-full flex items-center justify-center bg-black"
+                >
+                  <video
+                    src={ENDING_VIDEO_URL}
+                    className="w-full h-full object-contain"
+                    autoPlay
+                    playsInline
+                    controls
+                    onEnded={() => setEndingVideoComplete(true)}
+                    onError={() => setEndingVideoComplete(true)}
+                  />
+                  <button
+                    onClick={() => setEndingVideoComplete(true)}
+                    className="absolute bottom-8 right-8 font-tech text-[10px] text-gray-400 border border-gray-700/70 px-4 py-2 rounded-sm tracking-wider
+                      bg-black/50 hover:border-yellow-500/50 hover:text-yellow-300 transition-all duration-300"
+                  >
+                    跳过片尾
+                  </button>
+                </motion.div>
+              ) : (
+                <>
+                  {/* 海报图片 */}
+                  <motion.div
+                    key="ending-poster"
+                    initial={{ opacity: 0, scale: 0.9, filter: 'blur(10px)' }}
+                    animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                    transition={{ delay: 0.5, duration: 1.5, ease: [0.23, 1, 0.32, 1] }}
+                    className="relative w-full h-full flex items-center justify-center p-4"
+                  >
+                    <img
+                      src="/manus-storage/ending_poster_d88e314f.png"
+                      alt="欢迎来到 LEVEL 0"
+                      className="max-w-full max-h-[85vh] object-contain rounded-sm shadow-[0_0_60px_rgba(180,150,50,0.15)]"
+                    />
+                  </motion.div>
 
-              {/* 得分信息 */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 2.5, duration: 0.8 }}
-                className="absolute bottom-8 left-0 right-0 text-center z-40"
-              >
-                <p className="font-tech text-[11px] text-yellow-600/70 mb-3">
-                  得分: {score}/{totalAttempts} | 通过层级: {LEVELS.length}
-                </p>
-                <div className="flex items-center justify-center gap-4">
-                  <button
-                    onClick={() => navigate('/map')}
-                    className="font-tech text-[11px] text-gray-400 border border-gray-700 px-5 py-2 rounded-sm tracking-wider
-                      hover:border-yellow-500/50 hover:text-yellow-300 hover:shadow-[0_0_15px_rgba(180,150,50,0.1)]
-                      transition-all duration-300"
+                  {/* 得分信息 */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 2.5, duration: 0.8 }}
+                    className="absolute bottom-8 left-0 right-0 text-center z-40"
                   >
-                    返回地图
-                  </button>
-                  <button
-                    onClick={() => navigate('/')}
-                    className="font-tech text-[11px] text-gray-400 border border-gray-700 px-5 py-2 rounded-sm tracking-wider
-                      hover:border-[#E53935]/50 hover:text-[#E53935] hover:shadow-[0_0_15px_rgba(229,57,53,0.1)]
-                      transition-all duration-300"
-                  >
-                    返回入口
-                  </button>
-                </div>
-              </motion.div>
+                    <p className="font-tech text-[11px] text-yellow-600/70 mb-3">
+                      得分: {score}/{totalAttempts} | 通过层级: {LEVELS.length}
+                    </p>
+                    <div className="flex items-center justify-center gap-4">
+                      <button
+                        onClick={() => navigate('/map')}
+                        className="font-tech text-[11px] text-gray-400 border border-gray-700 px-5 py-2 rounded-sm tracking-wider
+                          hover:border-yellow-500/50 hover:text-yellow-300 hover:shadow-[0_0_15px_rgba(180,150,50,0.1)]
+                          transition-all duration-300"
+                      >
+                        返回地图
+                      </button>
+                      <button
+                        onClick={() => navigate('/')}
+                        className="font-tech text-[11px] text-gray-400 border border-gray-700 px-5 py-2 rounded-sm tracking-wider
+                          hover:border-[#E53935]/50 hover:text-[#E53935] hover:shadow-[0_0_15px_rgba(229,57,53,0.1)]
+                          transition-all duration-300"
+                      >
+                        返回入口
+                      </button>
+                    </div>
+                  </motion.div>
+                </>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
